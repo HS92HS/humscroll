@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#070b14">
+<title>Hum to Scroll</title>
+<style>
+:root{--bg:#070b14;--panel:#0e1524;--panel2:#141d33;--ink:#e8eefc;--mute:#8a96b3;--line:#22304d;--cy:#3ee6ff;--vi:#a07bff;--amb:#ffb547;--ok:#3dffa8;--bad:#ff6b7a;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent;overflow-x:hidden}
+body{background:radial-gradient(1200px 600px at 80% -10%,rgba(62,230,255,.10),transparent 60%),radial-gradient(900px 500px at -10% 110%,rgba(160,123,255,.12),transparent 60%),var(--bg)}
+.screen{display:none;min-height:100%;padding:24px 16px 40px;max-width:560px;margin:0 auto}
+.screen.on{display:block}
+h1{font-size:34px;line-height:1.1;margin:18px 0 6px;letter-spacing:-.5px}
+h1 span{background:linear-gradient(90deg,var(--cy),var(--vi));-webkit-background-clip:text;background-clip:text;color:transparent}
+h2{font-size:21px;margin:6px 0 8px}
+p{margin:6px 0 12px}.mute{color:var(--mute);font-size:14px}
+.kicker{font:600 12px var(--mono);letter-spacing:2px;text-transform:uppercase;color:var(--cy)}
+.card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0}
+button{font:inherit;font-weight:600;border:0;border-radius:12px;padding:14px 18px;background:linear-gradient(90deg,#2bc8e6,#7d5cf0);color:#fff;width:100%;margin:6px 0;cursor:pointer;box-shadow:0 0 0 1px rgba(255,255,255,.06) inset,0 6px 24px rgba(62,230,255,.15)}
+button.sec{background:rgba(62,230,255,.08);color:var(--cy);box-shadow:0 0 0 1px rgba(62,230,255,.25) inset}
+button:disabled{opacity:.45}
+input[type=number],input[type=text],textarea,select{font:inherit;width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:#0a1120;color:var(--ink)}
+label{display:block;font-weight:600;margin:10px 0 4px}
+.err{color:var(--bad);font-weight:600}.okc{color:var(--ok);font-weight:600}
+details summary{cursor:pointer;color:var(--mute);margin:4px 0}
+.bar{height:8px;background:#0a1120;border-radius:6px;overflow:hidden;border:1px solid var(--line)}.bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cy),var(--vi));box-shadow:0 0 12px var(--cy)}
+.lvl{height:6px;margin-top:8px}.lvl>i{background:var(--ok);box-shadow:none;transition:width .05s}
+.slider{margin:10px 0}.slider .ends{display:flex;justify-content:space-between;font-size:12px;color:var(--mute)}
+input[type=range]{width:100%;accent-color:var(--cy)}
+.steps{display:flex;gap:6px;margin:6px 0 10px}.steps i{flex:1;height:4px;border-radius:3px;background:var(--line)}.steps i.on{background:var(--cy);box-shadow:0 0 8px var(--cy)}
+.feat{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:14px 0}
+.feat div{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:10px;font-size:13px;color:var(--mute)}
+.feat b{display:block;color:var(--ink);font-size:14px}
+/* task view */
+#task{display:none;position:fixed;inset:0;background:var(--bg);overflow:hidden}
+#task.on{display:block}
+#hud{position:absolute;left:0;right:0;top:0;z-index:6;background:rgba(7,11,20,.88);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:10px 14px 9px;padding-top:max(10px,env(safe-area-inset-top))}
+#hud .t1{font:600 11px var(--mono);letter-spacing:1.5px;text-transform:uppercase;color:var(--cy);display:flex;justify-content:space-between;gap:8px}
+#hud .t2{font-size:21px;font-weight:700;margin-top:2px}
+#hud .t2 b{color:#1a1200;background:var(--amb);padding:0 8px;border-radius:7px;box-shadow:0 0 14px rgba(255,181,71,.5)}
+#hud .legend{font-size:12.5px;color:var(--mute);margin-top:3px}
+#hud .legend b{color:var(--cy)}#hud .legend em{color:var(--vi);font-style:normal;font-weight:700}
+#scroller{position:absolute;left:0;right:0;overflow-y:hidden;overscroll-behavior:contain}
+#scroller.swipe{overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+#scroller.lock{touch-action:none}
+.ln{height:44px;display:flex;align-items:center;padding:0 56px 0 14px;border-bottom:1px solid rgba(255,255,255,.04);white-space:nowrap;overflow:hidden;font-size:15px;color:#c9d3ea}
+.ln .n{width:44px;flex:none;color:var(--mute);font:12px var(--mono)}
+.ln.tg{background:rgba(255,181,71,.16);color:#fff;font-weight:700;box-shadow:inset 3px 0 0 var(--amb)}
+.ln.tg .n{color:var(--amb)}
+#article{display:none;padding:18px 58px 40px 18px;color:#d6def0;font-size:17px;line-height:1.65}
+#article h2{font-size:24px;margin:34px 0 6px;color:#fff}
+#article h3{font:600 12px var(--mono);letter-spacing:2px;text-transform:uppercase;color:var(--cy);margin:22px 0 6px}
+#article .meta{color:var(--mute);font-size:14px}
+#article ol,#article ul{padding-left:22px}#article li{margin:8px 0}
+#article .hero{font-size:30px;font-weight:800;line-height:1.15;margin:8px 0 6px;color:#fff}
+#box{position:absolute;left:6px;right:6px;border:2px solid var(--cy);border-radius:12px;pointer-events:none;z-index:4;box-shadow:0 0 18px rgba(62,230,255,.35),inset 0 0 18px rgba(62,230,255,.12)}
+#box.in{border-color:var(--ok);box-shadow:0 0 24px rgba(61,255,168,.5),inset 0 0 24px rgba(61,255,168,.15)}
+.meter{position:relative}
+#meter{position:absolute;right:8px;width:30px;z-index:7;pointer-events:none}
+.meter .track{position:absolute;inset:0;border-radius:15px;background:linear-gradient(180deg,rgba(62,230,255,.22),rgba(255,255,255,.03) 45%,rgba(255,255,255,.03) 55%,rgba(160,123,255,.25));border:1px solid var(--line)}
+.meter .dz{position:absolute;left:2px;right:2px;background:rgba(255,255,255,.07);border-radius:4px}
+.meter .mid{position:absolute;left:5px;right:5px;height:2px;background:rgba(255,255,255,.35)}
+.meter .dot{position:absolute;left:5px;width:18px;height:18px;border-radius:50%;background:#56607a;margin-top:-9px}
+.meter .dot.up{background:var(--cy);box-shadow:0 0 14px var(--cy),0 0 30px var(--cy)}
+.meter .dot.dn{background:var(--vi);box-shadow:0 0 14px var(--vi),0 0 30px var(--vi)}
+.meter .dot.hold{background:#e8eefc;box-shadow:0 0 10px rgba(255,255,255,.6)}
+.meter .lab{position:absolute;right:0;width:30px;text-align:center;font:10px var(--mono);color:var(--mute)}
+.glow{position:absolute;left:0;right:0;height:90px;pointer-events:none;z-index:5;opacity:0}
+#glowTop{background:linear-gradient(180deg,rgba(62,230,255,.45),transparent)}
+#glowBot{background:linear-gradient(0deg,rgba(160,123,255,.5),transparent)}
+#overlay{position:absolute;inset:0;z-index:10;display:none;align-items:center;justify-content:center;background:rgba(7,11,20,.9);text-align:center;padding:20px}
+#overlay.on{display:flex}
+#overlay .big{font-size:72px;font-weight:800;background:linear-gradient(90deg,var(--cy),var(--vi));-webkit-background-clip:text;background-clip:text;color:transparent}
+#flash{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.8);z-index:8;font-size:64px;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;text-shadow:0 0 30px currentColor}
+#flash.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#dock{position:absolute;left:0;right:0;bottom:0;z-index:7;display:none;background:rgba(7,11,20,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+#trail{display:block;width:100%;height:64px;border-radius:10px;background:#0a1120;border:1px solid var(--line)}
+.read{display:flex;justify-content:space-between;font:12px var(--mono);color:var(--mute);margin:6px 2px}
+.read b{color:var(--ink);font-weight:600}
+.modes{display:flex;gap:6px}
+.modes button{margin:0;padding:10px 4px;font-size:13.5px}
+#tune{display:none;padding:4px 2px 2px}
+#tune.on{display:block}
+#tune .slider{margin:6px 0}
+#tune .row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--mute)}
+#tune .row b{color:var(--ink);font-family:var(--mono)}
+.mini{display:flex;gap:6px;margin-top:6px}.mini button{margin:0;padding:8px 4px;font-size:12.5px}
+.calbox{display:flex;gap:16px;align-items:center;justify-content:center;margin:10px 0}
+.calmeter{height:200px;width:30px;margin:22px 0}
+#calTrail{width:100%;height:120px;display:block;border-radius:10px;background:#0a1120;border:1px solid var(--line)}
+</style>
+</head>
+<body>
+
+<!-- START -->
+<section class="screen on" id="sStart">
+  <div class="kicker">CS 6065 · Interaction technique</div>
+  <h1>Hum to <span>Scroll</span></h1>
+  <p class="mute">Scroll a page with your voice. Hum higher to go up, lower to go down. The further you go from your normal note, the faster it moves.</p>
+  <div class="feat"><div><b>Proportional</b>pitch sets speed</div><div><b>Calibrated</b>fits any voice</div><div><b>Hands-free</b>no touch needed</div></div>
+  <div class="card">
+    <p style="margin-top:0"><b>Showcase mode</b><br><span class="mute">Read a recipe hands-free, switch techniques, and tune the controls live. Nothing is recorded.</span></p>
+    <button id="btnDemo">Open showcase</button>
+  </div>
+  <div class="card">
+    <p style="margin-top:0"><b>Study session</b></p>
+    <label for="pid">Participant number</label>
+    <input id="pid" type="number" min="1" max="99" inputmode="numeric" placeholder="e.g. 1">
+    <p class="mute" id="orderInfo">Condition order is assigned automatically.</p>
+    <button class="sec" id="btnStudy">Start study session</button>
+  </div>
+  <details class="card"><summary>Saved study data</summary>
+    <p class="mute" id="savedInfo"></p>
+    <button class="sec" id="btnExportAll">Download all saved trials (CSV)</button>
+    <button class="sec" id="btnExportAllQ">Download all saved questionnaires (CSV)</button>
+    <button class="sec" id="btnClear" style="color:var(--bad)">Delete all saved data</button>
+  </details>
+  <details class="card"><summary>Study settings (researcher)</summary>
+    <label>Max hum scroll speed (px/s)</label><input id="setVmax" type="number">
+    <label>Step size for step humming (lines)</label><input id="setStep" type="number">
+    <label>Trial time limit (seconds)</label><input id="setTimeout" type="number">
+    <button class="sec" id="btnSaveSet">Save settings</button>
+    <p class="mute">Use the same settings for every participant. Showcase sliders also update these.</p>
+  </details>
+</section>
+
+<!-- CALIBRATION -->
+<section class="screen" id="sCal">
+  <div class="kicker">Voice setup</div>
+  <h2 id="calTitle">Stay quiet</h2>
+  <div class="steps" id="calSteps"><i></i><i></i><i></i><i></i></div>
+  <p class="mute">Quiet room. Phone about 20 cm from your mouth. Hum with lips closed: "mmmm".</p>
+  <div class="card">
+    <p id="calText" style="margin-top:0">We measure the background noise first.</p>
+    <div class="bar"><i id="calBar"></i></div>
+    <div class="bar lvl"><i id="calLvl"></i></div>
+    <p class="mute" style="margin:4px 0 0">Green bar = how loud the microphone hears you</p>
+    <p id="calMsg"></p>
+    <button id="btnCal">Start</button>
+  </div>
+</section>
+
+<!-- CAL CHECK -->
+<section class="screen" id="sCheck">
+  <div class="kicker">Voice check</div>
+  <h2>Try your voice</h2>
+  <p class="mute">Normal note: the dot stays in the middle. Higher: it rises and glows blue. Lower: it drops and glows purple.</p>
+  <div class="card">
+    <div class="calbox"><div class="calmeter meter" id="calMeterHost"></div><canvas id="calTrail" style="flex:1"></canvas></div>
+    <p class="mute" id="calSummary" style="text-align:center;font-family:var(--mono);font-size:12px"></p>
+  </div>
+  <button id="btnCheckOk">It works, continue</button>
+  <button class="sec" id="btnRecal">Redo voice setup</button>
+</section>
+
+<!-- CONDITION INTRO -->
+<section class="screen" id="sIntro">
+  <div class="kicker" id="introNo"></div>
+  <h2 id="introTitle"></h2>
+  <div class="card" id="introText"></div>
+  <div class="card"><b>Your task</b><p>A line number appears at the top. Move that highlighted line into the glowing box in the middle of the screen and keep it there for a moment. Then the next one appears. Be quick but careful.</p>
+  <p class="mute" style="margin:0">You start with 3 practice rounds.</p></div>
+  <button id="btnIntroGo">Start</button>
+</section>
+
+<!-- TLX -->
+<section class="screen" id="sTLX">
+  <div class="kicker">Quick questions</div>
+  <h2>How was that?</h2>
+  <p class="mute" id="tlxCond"></p>
+  <div id="tlxHost"></div>
+  <button id="btnTLX">Continue</button>
+</section>
+
+<!-- FINAL -->
+<section class="screen" id="sFinal">
+  <div class="kicker">Last step</div>
+  <h2>Last questions</h2>
+  <div class="card">
+    <label>Which method did you like the most?</label>
+    <select id="qBest"></select>
+    <label>Which method did you like the least?</label>
+    <select id="qWorst"></select>
+    <label>Why? Anything else you noticed?</label>
+    <textarea id="qWhy" rows="4"></textarea>
+    <p class="err" id="qErr"></p>
+  </div>
+  <button id="btnFinal">Finish</button>
+</section>
+
+<!-- DONE -->
+<section class="screen" id="sDone">
+  <div class="kicker">Complete</div>
+  <h2>All done. Thank you!</h2>
+  <p class="mute">The data is also saved on this phone. Download it now:</p>
+  <button id="btnDlTrials">Download trial data (CSV)</button>
+  <button id="btnDlQ">Download questionnaire (CSV)</button>
+  <button class="sec" id="btnHome">Back to start</button>
+</section>
+
+<!-- TASK / SHOWCASE VIEW -->
+<div id="task">
+  <div id="hud"><div class="t1"><span id="hud1"></span><span id="hudR"></span></div><div class="t2" id="hud2"></div><div class="legend" id="legend"></div></div>
+  <div id="scroller"><div id="list"></div><div id="article"></div></div>
+  <div class="glow" id="glowTop"></div><div class="glow" id="glowBot"></div>
+  <div id="box"></div>
+  <div id="meter" class="meter"></div>
+  <div id="flash"></div>
+  <div id="overlay"><div><div class="kicker" id="ovSmall"></div><div class="big" id="ovBig"></div><div id="ovText"></div></div></div>
+  <div id="dock">
+    <canvas id="trail"></canvas>
+    <div class="read"><span>PITCH <b id="rHz">--</b></span><span>OFFSET <b id="rSt">--</b></span><span>SPEED <b id="rV">0</b></span></div>
+    <div id="tune">
+      <div class="slider"><div class="row"><span>Max speed</span><b id="vVmax"></b></div><input type="range" id="tVmax" min="300" max="2400" step="50"></div>
+      <div class="slider"><div class="row"><span>Neutral zone (calm band)</span><b id="vDz"></b></div><input type="range" id="tDz" min="0.5" max="3.5" step="0.1"></div>
+      <div class="slider"><div class="row"><span>Speed curve (higher = finer control)</span><b id="vExpo"></b></div><input type="range" id="tExpo" min="1" max="3" step="0.1"></div>
+      <div class="slider"><div class="row"><span>Step size (step humming)</span><b id="vStep"></b></div><input type="range" id="tStep" min="1" max="12" step="1"></div>
+      <div class="mini"><button class="sec" id="btnTuneReset">Reset</button><button class="sec" id="btnTuneRecal">Recalibrate voice</button></div>
+    </div>
+    <div class="modes" style="margin-top:6px">
+      <button class="sec" data-m="P">Proportional</button>
+      <button class="sec" data-m="D">Step hum</button>
+      <button class="sec" data-m="S">Swipe</button>
+      <button class="sec" id="btnTune" style="flex:.55" aria-label="Tune">Tune</button>
+      <button class="sec" id="btnDemoExit" style="flex:.55">Exit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================= config ================= */
+const DEFAULTS = { vmax: 900, step: 4, expo: 1.5, timeout: 60000 };
+const CFG = Object.assign({
+  lines: 400, lineH: 44, boxLines: 5, startLine: 200, vmin: 35,
+  dwell: 800, distances: [10, 25, 50], reps: 2, practice: 3,
+  onsetMs: 70, gapMs: 130, minHumMs: 80, maxHumMs: 2500
+}, DEFAULTS);
+const COND = {
+  S: { name: "Swipe", desc: "Scroll with your finger, the normal way you use your phone." },
+  D: { name: "Step humming", desc: "Each short hum moves the page one step.<br><b>Hum higher</b> than your normal note to move <b>up</b>. <b>Hum lower</b> to move <b>down</b>. Stop, then hum again for the next step. Do not touch the screen." },
+  P: { name: "Proportional humming", desc: "Hum and hold. <b>Higher</b> than your normal note scrolls <b>up</b>, <b>lower</b> scrolls <b>down</b>. The further from your normal note, the <b>faster</b> it scrolls. Stop humming to stop. Do not touch the screen." }
+};
+const ORDERS = ["SDP", "SPD", "DSP", "DPS", "PSD", "PDS"];
+const TLX = [
+  ["mental", "Mental demand", "How much thinking was needed?", "Very low", "Very high"],
+  ["physical", "Physical demand", "How physically tiring was it?", "Very low", "Very high"],
+  ["temporal", "Time pressure", "How rushed did you feel?", "Very low", "Very high"],
+  ["performance", "Performance", "How well did you do?", "Perfect", "Failure"],
+  ["effort", "Effort", "How hard did you have to work?", "Very low", "Very high"],
+  ["frustration", "Frustration", "How annoyed or stressed were you?", "Very low", "Very high"]
+];
+
+/* ================= storage ================= */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  keys() { try { return Object.keys(localStorage).filter(k => k.startsWith("humscroll_P")); } catch (e) { return []; } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+Object.assign(CFG, store.get("humscroll_settings", {}));
+const saveSettings = () => store.set("humscroll_settings", { vmax: CFG.vmax, step: CFG.step, expo: CFG.expo, timeout: CFG.timeout });
+
+/* ================= helpers ================= */
+const $ = id => document.getElementById(id);
+const now = () => performance.now();
+const median = a => { if (!a.length) return NaN; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id)); $("task").classList.toggle("on", id === "task"); window.scrollTo(0, 0); }
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function toCSV(rows) {
+  if (!rows.length) return "";
+  const cols = Object.keys(rows[0]);
+  const esc = v => { v = v == null ? "" : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  return cols.join(",") + "\n" + rows.map(r => cols.map(c => esc(r[c])).join(",")).join("\n") + "\n";
+}
+function download(name, text) {
+  const blob = new Blob([text], { type: "text/csv" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function wake() { try { navigator.wakeLock && navigator.wakeLock.request("screen").catch(() => {}); } catch (e) {} }
+
+/* ================= audio + pitch ================= */
+const audio = { ctx: null, an: null, buf: null, ready: false, rms: 0, hz: -1, voiced: false, st: NaN, raw: [], voicedSince: 0, lastVoiced: 0 };
+let cal = store.get("humscroll_cal", null); // {thr,f0,loSt,hiSt,dz}
+const trailData = []; // {t, st}
+
+async function startMic() {
+  if (audio.ready) { if (audio.ctx.state !== "running") await audio.ctx.resume(); return; }
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  await audio.ctx.resume();
+  const src = audio.ctx.createMediaStreamSource(stream);
+  const hp = audio.ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 60; // remove rumble / handling noise
+  audio.an = audio.ctx.createAnalyser(); audio.an.fftSize = 2048;
+  src.connect(hp); hp.connect(audio.an);
+  audio.buf = new Float32Array(audio.an.fftSize);
+  audio.ready = true;
+}
+
+// YIN pitch estimator (de Cheveigné & Kawahara 2002). Returns Hz or -1 when no clear pitch.
+function yin(buf, sr) {
+  const W = 1024, minT = Math.floor(sr / 600), maxT = Math.min(Math.floor(sr / 70), buf.length - W - 1);
+  const c = new Float32Array(maxT + 2);
+  let run = 0; c[0] = 1;
+  for (let t = 1; t <= maxT; t++) {
+    let s = 0;
+    for (let i = 0; i < W; i++) { const x = buf[i] - buf[i + t]; s += x * x; }
+    run += s; c[t] = run ? s * t / run : 1;
+  }
+  c[maxT + 1] = c[maxT];
+  for (let t = minT; t <= maxT; t++) {
+    if (c[t] < 0.15) {
+      while (t + 1 <= maxT && c[t + 1] < c[t]) t++;
+      const a = c[t - 1], b = c[t], g = c[t + 1], den = a + g - 2 * b;
+      const sh = den ? clamp((a - g) / (2 * den), -1, 1) : 0;
+      return sr / (t + sh);
+    }
+  }
+  return -1;
+}
+
+let lastRead = 0;
+function readAudio(t) {
+  if (!audio.ready || t === lastRead) return; lastRead = t;
+  audio.an.getFloatTimeDomainData(audio.buf);
+  let s = 0; for (let i = 0; i < audio.buf.length; i++) s += audio.buf[i] * audio.buf[i];
+  audio.rms = Math.sqrt(s / audio.buf.length);
+  const thr = cal ? cal.thr : 0.01;
+  audio.hz = audio.rms > thr ? yin(audio.buf, audio.ctx.sampleRate) : -1;
+  const v = audio.hz > 0;
+  if (v && cal) {
+    const raw = 12 * Math.log2(audio.hz / cal.f0);
+    // ignore single-frame octave jumps and wild outliers (keep the previous estimate)
+    if (!(audio.raw.length >= 3 && Math.abs(raw - median(audio.raw)) > 7)) {
+      audio.raw.push(raw); if (audio.raw.length > 5) audio.raw.shift();
+      const m = median(audio.raw);
+      audio.st = isNaN(audio.st) ? m : audio.st + (m - audio.st) * 0.55;
+    }
+  }
+  const was = audio.voiced;
+  if (v) { if (!was) audio.voicedSince = t; audio.lastVoiced = t; }
+  else if (t - audio.lastVoiced > 60) { audio.raw = []; audio.st = NaN; }
+  audio.voiced = v || (was && t - audio.lastVoiced <= 60); // bridge tiny dropouts inside a hum
+  trailData.push({ t, st: audio.voiced ? audio.st : NaN });
+  while (trailData.length && t - trailData[0].t > 4500) trailData.shift();
+}
+
+/* ================= meter + trail ================= */
+function buildMeter(host, h) {
+  host.innerHTML = '<div class="track"></div><div class="dz"></div><div class="mid"></div><div class="dot"></div>' +
+    '<div class="lab" style="top:-16px">UP</div><div class="lab" style="bottom:-16px">DN</div>';
+  host.style.height = h + "px";
+}
+function drawMeter(host, active) {
+  if (!cal || !host.firstChild) return;
+  const h = host.clientHeight, range = Math.max(cal.hiSt, -cal.loSt) * 1.15;
+  const y = st => clamp(h / 2 - (st / range) * (h / 2), 9, h - 9);
+  const dz = host.querySelector(".dz"), mid = host.querySelector(".mid"), dot = host.querySelector(".dot");
+  dz.style.top = y(cal.dz) + "px"; dz.style.height = (y(-cal.dz) - y(cal.dz)) + "px";
+  mid.style.top = (h / 2 - 1) + "px";
+  if (audio.voiced && !isNaN(audio.st)) {
+    dot.style.top = y(audio.st) + "px";
+    dot.className = "dot " + (audio.st > cal.dz ? "up" : audio.st < -cal.dz ? "dn" : "hold");
+    if (!active) dot.className = "dot hold";
+    dot.style.opacity = 1;
+  } else { dot.style.top = h / 2 + "px"; dot.className = "dot"; dot.style.opacity = .4; }
+}
+function drawTrail(cv) {
+  if (!cal) return;
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const range = Math.max(cal.hiSt, -cal.loSt) * 1.2, y = st => clamp(h / 2 - (st / range) * (h / 2 - 4), 2, h - 2);
+  g.fillStyle = "rgba(62,230,255,.06)"; g.fillRect(0, 0, w, y(cal.dz));
+  g.fillStyle = "rgba(160,123,255,.07)"; g.fillRect(0, y(-cal.dz), w, h - y(-cal.dz));
+  g.fillStyle = "rgba(255,255,255,.05)"; g.fillRect(0, y(cal.dz), w, y(-cal.dz) - y(cal.dz));
+  g.strokeStyle = "rgba(255,255,255,.25)"; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke(); g.setLineDash([]);
+  g.font = "10px ui-monospace,Menlo,monospace"; g.fillStyle = "rgba(138,150,179,.9)";
+  g.fillText("UP", 6, 12); g.fillText("DOWN", 6, h - 5); g.fillText("NORMAL", w - 52, h / 2 - 4);
+  if (!trailData.length) return;
+  const tEnd = trailData[trailData.length - 1].t, span = 4000;
+  g.lineWidth = 2.5; g.lineCap = "round"; g.lineJoin = "round";
+  let prev = null;
+  for (const p of trailData) {
+    const x = w - ((tEnd - p.t) / span) * w;
+    if (isNaN(p.st)) { prev = null; continue; }
+    const yy = y(p.st);
+    if (prev) {
+      const col = p.st > cal.dz ? "#3ee6ff" : p.st < -cal.dz ? "#a07bff" : "#e8eefc";
+      g.strokeStyle = col; g.shadowColor = col; g.shadowBlur = 8;
+      g.beginPath(); g.moveTo(prev.x, prev.y); g.lineTo(x, yy); g.stroke();
+    }
+    prev = { x, y: yy };
+  }
+  g.shadowBlur = 0;
+}
+
+/* ================= calibration ================= */
+const CAL_STEPS = [
+  { key: "noise", title: "Stay quiet", text: "We measure the background noise first. Don't make a sound for 2 seconds.", ms: 2000 },
+  { key: "normal", title: "Hum your normal note", text: "Hum a comfortable, relaxed note, like you are thinking \"mmm\". Keep it steady for 3 seconds.", ms: 3000 },
+  { key: "low", title: "Hum a LOW note", text: "Hum a note clearly lower than your normal one, but still comfortable.", ms: 3000 },
+  { key: "high", title: "Hum a HIGH note", text: "Hum a note clearly higher than your normal one, but still comfortable.", ms: 3000 }
+];
+let calIdx = 0, calTmp = {}, calAfter = null;
+function calRender() {
+  const s = CAL_STEPS[calIdx];
+  [...$("calSteps").children].forEach((e, i) => e.classList.toggle("on", i <= calIdx));
+  $("calTitle").textContent = s.title; $("calText").textContent = s.text;
+  $("calBar").style.width = "0"; $("btnCal").disabled = false; $("btnCal").textContent = "Start";
+}
+function beginCal(after) { calIdx = 0; calTmp = {}; calAfter = after; $("calMsg").textContent = ""; calRender(); show("sCal"); }
+function calFail(msg) { $("calMsg").innerHTML = '<span class="err">' + msg + "</span>"; $("btnCal").disabled = false; $("btnCal").textContent = "Try again"; }
+$("btnCal").onclick = async () => {
+  try { await startMic(); } catch (e) { $("calMsg").innerHTML = '<span class="err">Microphone blocked. Allow microphone access for this page in your browser settings, then reload.</span>'; return; }
+  const s = CAL_STEPS[calIdx];
+  $("btnCal").disabled = true; $("btnCal").textContent = "Listening..."; $("calMsg").textContent = "";
+  const samples = [], t0 = now(), prevCal = cal;
+  if (s.key === "noise") cal = null;
+  else cal = Object.assign({ loSt: -6, hiSt: 6, dz: 1.5 }, prevCal || {}, { thr: calTmp.thr, f0: calTmp.f0 || 150 });
+  await new Promise(res => {
+    (function tick() {
+      const t = now(); readAudio(t);
+      if (s.key === "noise") samples.push(audio.rms);
+      else if (audio.hz > 0) samples.push(audio.hz);
+      $("calBar").style.width = clamp((t - t0) / s.ms * 100, 0, 100) + "%";
+      $("calLvl").style.width = clamp(audio.rms * 600, 0, 100) + "%";
+      if (t - t0 < s.ms) requestAnimationFrame(tick); else res();
+    })();
+  });
+  cal = prevCal;
+  if (s.key === "noise") {
+    const sorted = [...samples].sort((a, b) => a - b), p90 = sorted[Math.floor(sorted.length * .9)] || 0;
+    calTmp.thr = Math.max(0.006, p90 * 3);
+  } else {
+    if (samples.length < 20) return calFail("I could not hear a steady hum. Try again a bit louder and closer.");
+    const trimmed = [...samples].sort((a, b) => a - b).slice(Math.floor(samples.length * .2), Math.ceil(samples.length * .8));
+    const hz = median(trimmed);
+    if (s.key === "normal") calTmp.f0 = hz;
+    else {
+      const st = 12 * Math.log2(hz / calTmp.f0);
+      if (s.key === "low" && st > -2) return calFail("That was too close to your normal note. Go a little lower.");
+      if (s.key === "high" && st < 2) return calFail("That was too close to your normal note. Go a little higher.");
+      calTmp[s.key === "low" ? "loSt" : "hiSt"] = st;
+    }
+  }
+  calIdx++;
+  if (calIdx < CAL_STEPS.length) { calRender(); $("calMsg").innerHTML = '<span class="okc">Got it.</span>'; return; }
+  calTmp.dz = clamp(0.35 * Math.min(calTmp.hiSt, -calTmp.loSt), 1, 2.5);
+  cal = calTmp; store.set("humscroll_cal", cal); audio.st = NaN; audio.raw = [];
+  openCheck();
+};
+let checkRAF = 0;
+function openCheck() {
+  show("sCheck");
+  const host = $("calMeterHost"); buildMeter(host, 200);
+  $("calSummary").textContent = `NORMAL ${cal.f0.toFixed(0)} Hz · LOW ${cal.loSt.toFixed(1)} st · HIGH +${cal.hiSt.toFixed(1)} st · CALM BAND ±${cal.dz.toFixed(1)} st`;
+  cancelAnimationFrame(checkRAF);
+  (function tick() { readAudio(now()); drawMeter(host, true); drawTrail($("calTrail")); if ($("sCheck").classList.contains("on")) checkRAF = requestAnimationFrame(tick); })();
+}
+$("btnRecal").onclick = () => beginCal(calAfter);
+$("btnCheckOk").onclick = () => { cancelAnimationFrame(checkRAF); calAfter && calAfter(); };
+
+/* ================= content ================= */
+const WORDS = "the a quiet river morning light over small town people walk past old houses while birds sing near open windows and coffee smells drift from corner shops into busy streets full of bikes buses and friendly dogs".split(" ");
+(function buildList() {
+  const list = $("list"); let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const frag = document.createDocumentFragment();
+  for (let i = 1; i <= CFG.lines; i++) {
+    const d = document.createElement("div"); d.className = "ln"; d.id = "L" + i;
+    const w = []; for (let k = 0; k < 7; k++) w.push(WORDS[Math.floor(rnd() * WORDS.length)]);
+    d.innerHTML = `<span class="n">${i}</span><span>${w.join(" ")}</span>`;
+    frag.appendChild(d);
+  }
+  list.appendChild(frag);
+})();
+$("article").innerHTML = `
+<div class="kicker">Hands busy? Just hum.</div>
+<div class="hero">Weeknight Kitchen: Three Simple Dishes</div>
+<p class="meta">Three easy recipes for busy evenings. Your hands will be full, sticky or floury, so keep the phone propped up and hum to move through the steps.</p>
+<h2>1. Red Lentil Soup</h2>
+<p class="meta">Serves 4 · 35 minutes · One pot</p>
+<h3>Ingredients</h3>
+<ul><li>2 tablespoons olive oil</li><li>1 large onion, finely chopped</li><li>2 carrots, diced</li><li>3 cloves garlic, crushed</li><li>1 teaspoon ground cumin</li><li>1 teaspoon smoked paprika</li><li>250 g red lentils, rinsed</li><li>1 tin chopped tomatoes</li><li>1.2 litres vegetable stock</li><li>Juice of half a lemon, salt and pepper</li></ul>
+<h3>Method</h3>
+<ol><li>Warm the oil in a large pot over medium heat. Add the onion and carrots with a pinch of salt and cook for 8 minutes, stirring now and then, until soft and lightly golden.</li>
+<li>Stir in the garlic, cumin and paprika. Cook for one minute until fragrant, but do not let the garlic brown.</li>
+<li>Add the rinsed lentils and stir so they are coated in the spiced oil.</li>
+<li>Pour in the tomatoes and stock. Bring to a boil, then lower the heat and simmer for 20 minutes, stirring occasionally so nothing sticks to the bottom.</li>
+<li>When the lentils have collapsed and the carrots are tender, take the pot off the heat.</li>
+<li>Blend half of the soup for a creamy texture while keeping some body, or blend it all if you like it smooth.</li>
+<li>Squeeze in the lemon juice, then taste and season with salt and pepper. Serve with warm bread.</li></ol>
+<h2>2. Lemon Herb Chicken Traybake</h2>
+<p class="meta">Serves 4 · 50 minutes · One tray</p>
+<h3>Ingredients</h3>
+<ul><li>8 chicken thighs, bone in</li><li>700 g small potatoes, halved</li><li>1 red onion, cut into wedges</li><li>1 lemon, sliced</li><li>4 cloves garlic, left whole</li><li>2 teaspoons dried oregano</li><li>1 teaspoon dried thyme</li><li>3 tablespoons olive oil</li><li>Salt, pepper and fresh parsley</li></ul>
+<h3>Method</h3>
+<ol><li>Heat the oven to 200°C. Put the potatoes, onion and garlic into a large roasting tray.</li>
+<li>Drizzle with half of the oil, scatter over half of the herbs, season well and toss everything together with your hands.</li>
+<li>Rub the chicken thighs with the remaining oil and herbs, and season the skin generously with salt.</li>
+<li>Nestle the chicken skin side up among the potatoes and tuck the lemon slices in between.</li>
+<li>Roast for 40 to 45 minutes, until the skin is crisp and the juices run clear when you pierce the thickest thigh.</li>
+<li>Squeeze the soft roasted garlic out of its skin and stir it through the potatoes.</li>
+<li>Rest for 5 minutes, scatter with chopped parsley and serve straight from the tray.</li></ol>
+<h2>3. Banana Oat Pancakes</h2>
+<p class="meta">Makes 10 · 20 minutes · Blender</p>
+<h3>Ingredients</h3>
+<ul><li>2 ripe bananas</li><li>2 eggs</li><li>120 g rolled oats</li><li>200 ml milk</li><li>1 teaspoon baking powder</li><li>Half a teaspoon cinnamon</li><li>Butter for the pan</li></ul>
+<h3>Method</h3>
+<ol><li>Put everything except the butter into a blender and blend until smooth. Let the batter rest for 5 minutes so the oats soften.</li>
+<li>Heat a non-stick pan over medium-low heat and melt a little butter.</li>
+<li>Pour in about 3 tablespoons of batter per pancake, leaving space between them.</li>
+<li>Cook for 2 minutes, until bubbles appear on the surface and the edges look set.</li>
+<li>Flip carefully and cook for another minute until golden.</li>
+<li>Keep the cooked pancakes warm in a low oven while you finish the batch. Serve with yogurt and berries.</li></ol>
+<h2>Kitchen Tips</h2>
+<ul><li><b>Read the whole recipe first.</b> Knowing what comes next stops you rushing mid-step.</li>
+<li><b>Prepare before you cook.</b> Chop and measure everything before the heat goes on.</li>
+<li><b>Taste as you go.</b> Seasoning at the end is easier than fixing it later.</li>
+<li><b>Clean as you cook.</b> A quick wipe between steps keeps the counter calm.</li>
+<li><b>Keep your phone out of the splash zone.</b> Prop it up and let your voice do the scrolling.</li></ul>
+<p class="meta" style="margin-top:40px;text-align:center">End of recipes · Hum higher to scroll back up</p>`;
+
+/* ================= layout ================= */
+const sc = $("scroller");
+const geo = { top: 0, H: 0, pad: 0, boxTop: 0, boxBot: 0 };
+let demo = false;
+function layout() {
+  geo.top = $("hud").offsetHeight;
+  const bottom = demo ? $("dock").offsetHeight : 0;
+  sc.style.top = geo.top + "px"; sc.style.bottom = bottom + "px";
+  geo.H = sc.clientHeight;
+  geo.pad = Math.round(geo.H / 2);
+  $("list").style.padding = `${geo.pad}px 0`;
+  const bh = CFG.boxLines * CFG.lineH;
+  geo.boxTop = geo.H / 2 - bh / 2; geo.boxBot = geo.H / 2 + bh / 2;
+  const box = $("box"); box.style.top = (geo.top + geo.boxTop) + "px"; box.style.height = bh + "px";
+  const m = $("meter"), mh = Math.min(240, geo.H * .5);
+  if (!m.firstChild) buildMeter(m, mh); else m.style.height = mh + "px";
+  m.style.top = (geo.top + geo.H / 2 - mh / 2) + "px";
+  $("glowTop").style.top = geo.top + "px"; $("glowBot").style.bottom = bottom + "px";
+}
+window.addEventListener("resize", () => { if ($("task").classList.contains("on")) layout(); });
+const lineCenterY = n => geo.pad + (n - 0.5) * CFG.lineH - sc.scrollTop;
+const centerLine = () => clamp(Math.round((sc.scrollTop + geo.H / 2 - geo.pad) / CFG.lineH + 0.5), 1, CFG.lines);
+const scrollForLine = n => geo.pad + (n - 0.5) * CFG.lineH - geo.H / 2;
+const maxScroll = () => sc.scrollHeight - sc.clientHeight;
+function flash(txt, col) { const f = $("flash"); f.textContent = txt; f.style.color = col || "#fff"; f.classList.add("on"); clearTimeout(flash.t); flash.t = setTimeout(() => f.classList.remove("on"), 260); }
+
+/* ================= control ================= */
+let mode = "S", inputOn = false, pos = 0, aim = 0, vel = 0, engaged = false;
+const ev = { active: false, start: 0, sts: [] };
+const counters = { events: 0, unrec: 0 };
+function setMode(m) {
+  mode = m; pos = aim = sc.scrollTop; vel = 0; ev.active = false; engaged = false;
+  sc.className = m === "S" ? "swipe" : "lock";
+  $("meter").style.display = m === "S" ? "none" : "block";
+  document.querySelectorAll("#dock button[data-m]").forEach(b => { b.className = b.dataset.m === m ? "" : "sec"; });
+  if (demo) {
+    $("hud1").textContent = "Showcase · " + (m === "P" ? "Proportional humming" : m === "D" ? "Step humming" : "Swipe");
+    $("legend").innerHTML = m === "P" ? "Hum <b>higher ▲ up</b> · <em>lower ▼ down</em> · further = faster · silence = stop"
+      : m === "D" ? "Short hum <b>higher ▲ one step up</b> · <em>lower ▼ one step down</em>"
+      : "Normal finger scrolling (baseline)";
+  }
+}
+function setInput(on) {
+  inputOn = on; pos = aim = sc.scrollTop; vel = 0; ev.active = false; engaged = false;
+  if (mode === "S") sc.className = on ? "swipe" : "lock";
+}
+function voiceStep(t, dt) {
+  if (!cal) return;
+  if (mode === "P") {
+    let vt = 0;
+    const ok = audio.voiced && !isNaN(audio.st) && t - audio.voicedSince >= CFG.onsetMs;
+    if (ok) {
+      const st = audio.st, gate = engaged ? cal.dz * 0.6 : cal.dz; // hysteresis: easier to keep moving than to start
+      if (st > gate) { const u = clamp((st - cal.dz) / Math.max(0.5, cal.hiSt - cal.dz), 0, 1); vt = -(CFG.vmin + (CFG.vmax - CFG.vmin) * Math.pow(u, CFG.expo)); }
+      else if (st < -gate) { const u = clamp((-st - cal.dz) / Math.max(0.5, -cal.loSt - cal.dz), 0, 1); vt = CFG.vmin + (CFG.vmax - CFG.vmin) * Math.pow(u, CFG.expo); }
+      engaged = vt !== 0;
+    } else engaged = false;
+    vel += (vt - vel) * Math.min(1, dt * (vt === 0 ? 16 : 8)); // smooth acceleration, quick stop
+    if (vt === 0 && Math.abs(vel) < 8) vel = 0;
+    pos = clamp(pos + vel * dt, 0, maxScroll()); sc.scrollTop = pos; aim = pos;
+  } else if (mode === "D") {
+    if (audio.voiced && !isNaN(audio.st)) {
+      if (!ev.active) { ev.active = true; ev.start = t; ev.sts = []; }
+      ev.sts.push(audio.st);
+    } else if (ev.active && t - audio.lastVoiced > CFG.gapMs) {
+      ev.active = false;
+      const dur = audio.lastVoiced - ev.start;
+      if (dur >= CFG.minHumMs && dur <= CFG.maxHumMs) {
+        counters.events++;
+        const m = median(ev.sts.slice(Math.floor(ev.sts.length * 0.3))); // ignore the onset glide
+        if (m > cal.dz) { aim = clamp(aim - CFG.step * CFG.lineH, 0, maxScroll()); flash("▲", "#3ee6ff"); }
+        else if (m < -cal.dz) { aim = clamp(aim + CFG.step * CFG.lineH, 0, maxScroll()); flash("▼", "#a07bff"); }
+        else { counters.unrec++; flash("?", "#8a96b3"); }
+      }
+    }
+    const prev = pos;
+    pos += (aim - pos) * Math.min(1, dt * 14);
+    if (Math.abs(aim - pos) < 0.5) pos = aim;
+    sc.scrollTop = pos; vel = dt ? (pos - prev) / dt : 0;
+  }
+}
+
+/* ================= main loop ================= */
+let lastT = now(), lastSwipe = 0;
+function loop() {
+  const t = now(), dt = Math.min(0.05, (t - lastT) / 1000); lastT = t;
+  if ($("task").classList.contains("on")) {
+    if (mode !== "S" || demo) readAudio(t);
+    if (mode !== "S") { drawMeter($("meter"), inputOn); if (inputOn) voiceStep(t, dt); else ev.active = false; }
+    else { vel = dt ? (sc.scrollTop - lastSwipe) / dt : 0; }
+    lastSwipe = sc.scrollTop;
+    const g = clamp(Math.abs(vel) / Math.max(300, CFG.vmax), 0, 1) * (mode === "S" ? 0.5 : 1);
+    $("glowTop").style.opacity = vel < -1 ? g : 0; $("glowBot").style.opacity = vel > 1 ? g : 0;
+    if (demo) {
+      drawTrail($("trail"));
+      $("rHz").textContent = audio.voiced && audio.hz > 0 ? audio.hz.toFixed(0) + " Hz" : "--";
+      $("rSt").textContent = audio.voiced && !isNaN(audio.st) ? (audio.st >= 0 ? "+" : "") + audio.st.toFixed(1) + " st" : "--";
+      $("rV").textContent = (Math.abs(vel) / CFG.lineH).toFixed(1) + " lines/s";
+    }
+    if (trial && trial.running) checkTrial(t);
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ================= study session ================= */
+let S = null, trial = null;
+function sessionKey(pid) { return "humscroll_P" + String(pid).padStart(2, "0"); }
+function saveSession() { store.set(sessionKey(S.pid), { rows: S.rows, tlx: S.tlx, survey: S.survey }); }
+function makeTrials() {
+  const real = [];
+  for (const d of CFG.distances) for (const dir of [-1, 1]) for (let r = 0; r < CFG.reps; r++) real.push({ d, dir, practice: 0 });
+  shuffle(real);
+  const pr = []; for (let i = 0; i < CFG.practice; i++) pr.push({ d: CFG.distances[i % CFG.distances.length], dir: Math.random() < .5 ? -1 : 1, practice: 1 });
+  return [...shuffle(pr), ...real];
+}
+$("pid").oninput = () => { const p = parseInt($("pid").value); $("orderInfo").textContent = p > 0 ? "Order: " + ORDERS[(p - 1) % 6].split("").map(c => COND[c].name).join(" → ") : "Condition order is assigned automatically."; };
+$("btnStudy").onclick = () => {
+  const p = parseInt($("pid").value);
+  if (!(p > 0 && p < 100)) { $("orderInfo").innerHTML = '<span class="err">Enter a participant number first (1 to 99).</span>'; return; }
+  if (store.get(sessionKey(p), null) && !confirm("Participant " + p + " already has saved data on this phone. Start again and overwrite it?")) return;
+  S = { pid: p, order: ORDERS[(p - 1) % 6], ci: -1, rows: [], tlx: [], survey: [] };
+  wake(); beginCal(nextCondition);
+};
+function enterStudyView() {
+  demo = false;
+  $("dock").style.display = "none"; $("box").style.display = ""; $("list").style.display = ""; $("article").style.display = "none";
+  $("legend").textContent = "";
+}
+function nextCondition() {
+  S.ci++;
+  if (S.ci >= 3) { openFinal(); return; }
+  const c = S.order[S.ci];
+  $("introNo").textContent = `Part ${S.ci + 1} of 3`;
+  $("introTitle").textContent = COND[c].name;
+  $("introText").innerHTML = COND[c].desc;
+  show("sIntro");
+}
+$("btnIntroGo").onclick = async () => {
+  const c = S.order[S.ci];
+  if (c !== "S") { try { await startMic(); } catch (e) {} }
+  S.trials = makeTrials(); S.ti = -1;
+  enterStudyView(); show("task"); layout(); setMode(c);
+  sc.scrollTop = scrollForLine(CFG.startLine); pos = aim = sc.scrollTop;
+  nextTrial();
+};
+function nextTrial() {
+  S.ti++;
+  if (S.ti >= S.trials.length) { trial = null; endCondition(); return; }
+  const spec = S.trials[S.ti], start = centerLine();
+  let dir = spec.dir, target = start + dir * spec.d;
+  if (target < 3 || target > CFG.lines - 2) { dir = -dir; target = start + dir * spec.d; }
+  document.querySelectorAll(".ln.tg").forEach(e => e.classList.remove("tg"));
+  $("L" + target).classList.add("tg");
+  const c = S.order[S.ci], realN = S.trials.filter(x => !x.practice).length;
+  $("hud1").textContent = COND[c].name;
+  $("hudR").textContent = spec.practice ? `Practice ${S.ti + 1}/${CFG.practice}` : `Round ${S.ti - CFG.practice + 1}/${realN}`;
+  $("hud2").innerHTML = `Bring line <b>${target}</b> into the box`;
+  trial = { spec, c, start, target, dir, running: false, t0: 0, inBox: false, dwellStart: 0, firstEntry: null, entries: 0, overs: 0, path: 0, lastScroll: sc.scrollTop };
+  counters.events = 0; counters.unrec = 0;
+  setInput(false);
+  overlay(spec.practice ? "Practice" : "Get ready", "3", `Line ${target} is ${dir < 0 ? "above ▲" : "below ▼"}`);
+  let n = 3;
+  const iv = setInterval(() => {
+    n--;
+    if (n > 0) { $("ovBig").textContent = n; return; }
+    clearInterval(iv); overlayOff();
+    trial.running = true; trial.t0 = now(); trial.lastScroll = sc.scrollTop; setInput(true);
+  }, 700);
+}
+function overlay(small, big, text) { $("ovSmall").textContent = small || ""; $("ovBig").textContent = big || ""; $("ovText").innerHTML = text || ""; $("overlay").classList.add("on"); }
+function overlayOff() { $("overlay").classList.remove("on"); }
+function checkTrial(t) {
+  const y = lineCenterY(trial.target), inBox = y >= geo.boxTop && y <= geo.boxBot;
+  trial.path += Math.abs(sc.scrollTop - trial.lastScroll); trial.lastScroll = sc.scrollTop;
+  if (inBox && !trial.inBox) { trial.entries++; trial.dwellStart = t; if (trial.firstEntry == null) trial.firstEntry = t - trial.t0; }
+  if (!inBox && trial.inBox) trial.overs++;
+  trial.inBox = inBox; $("box").classList.toggle("in", inBox);
+  if (inBox && t - trial.dwellStart >= CFG.dwell) finishTrial(t, false);
+  else if (t - trial.t0 > CFG.timeout) finishTrial(t, true);
+}
+function finishTrial(t, timedOut) {
+  trial.running = false; setInput(false); $("box").classList.remove("in");
+  const tr = trial;
+  S.rows.push({
+    participant: S.pid, order: S.order, cond_position: S.ci + 1, condition: COND[tr.c].name, cond_code: tr.c,
+    practice: tr.spec.practice, trial: S.ti + 1, distance_lines: tr.spec.d, direction: tr.dir < 0 ? "up" : "down",
+    start_line: tr.start, target_line: tr.target,
+    time_ms: timedOut ? "" : Math.round(tr.dwellStart - tr.t0), total_ms: Math.round(t - tr.t0),
+    first_entry_ms: tr.firstEntry == null ? "" : Math.round(tr.firstEntry),
+    overshoots: tr.overs, box_entries: tr.entries, path_lines: (tr.path / CFG.lineH).toFixed(1),
+    timed_out: timedOut ? 1 : 0, hum_events: tr.c === "D" ? counters.events : "", unrecognized_hums: tr.c === "D" ? counters.unrec : "",
+    f0_hz: cal ? cal.f0.toFixed(1) : "", low_st: cal ? cal.loSt.toFixed(2) : "", high_st: cal ? cal.hiSt.toFixed(2) : "", deadzone_st: cal ? cal.dz.toFixed(2) : "",
+    vmax: CFG.vmax, speed_curve: CFG.expo, step_lines: CFG.step, timestamp: new Date().toISOString()
+  });
+  saveSession();
+  flash(timedOut ? "⏱" : "✓", timedOut ? "#ff6b7a" : "#3dffa8");
+  setTimeout(nextTrial, 450);
+}
+function endCondition() {
+  show("sTLX");
+  const c = S.order[S.ci];
+  $("tlxCond").textContent = "About: " + COND[c].name + ". Move each slider.";
+  $("tlxHost").innerHTML = TLX.map(([k, n, q, lo, hi]) => `<div class="slider card"><b>${n}</b><div class="mute">${q}</div><input type="range" min="0" max="100" step="5" value="50" id="tlx_${k}"><div class="ends"><span>${lo}</span><span>${hi}</span></div></div>`).join("");
+}
+$("btnTLX").onclick = () => {
+  const c = S.order[S.ci], r = { participant: S.pid, condition: COND[c].name, cond_code: c, cond_position: S.ci + 1 };
+  let sum = 0; TLX.forEach(([k]) => { const v = +$("tlx_" + k).value; r[k] = v; sum += v; });
+  r.raw_tlx = (sum / 6).toFixed(1);
+  S.tlx.push(r); saveSession(); nextCondition();
+};
+function openFinal() {
+  const opts = '<option value="">Choose</option>' + "SDP".split("").map(c => `<option value="${COND[c].name}">${COND[c].name}</option>`).join("");
+  $("qBest").innerHTML = opts; $("qWorst").innerHTML = opts; $("qWhy").value = ""; $("qErr").textContent = "";
+  show("sFinal");
+}
+$("btnFinal").onclick = () => {
+  if (!$("qBest").value || !$("qWorst").value) { $("qErr").textContent = "Please answer both questions."; return; }
+  if ($("qBest").value === $("qWorst").value) { $("qErr").textContent = "Most and least liked should be different."; return; }
+  S.survey = [{ participant: S.pid, order: S.order, liked_most: $("qBest").value, liked_least: $("qWorst").value, comment: $("qWhy").value.trim() }];
+  saveSession(); show("sDone");
+};
+function qRows(sess) {
+  const sv = sess.survey[0] || {};
+  return sess.tlx.map(t => Object.assign({}, t, { liked_most: sv.liked_most || "", liked_least: sv.liked_least || "", comment: sv.comment || "" }));
+}
+$("btnDlTrials").onclick = () => download(`P${String(S.pid).padStart(2, "0")}_trials.csv`, toCSV(S.rows));
+$("btnDlQ").onclick = () => download(`P${String(S.pid).padStart(2, "0")}_questionnaire.csv`, toCSV(qRows(S)));
+$("btnHome").onclick = () => { refreshSaved(); show("sStart"); };
+
+/* ================= saved data + settings ================= */
+function refreshSaved() {
+  const ks = store.keys().sort();
+  $("savedInfo").textContent = ks.length ? "Saved on this phone: " + ks.map(k => k.replace("humscroll_", "")).join(", ") : "Nothing saved yet.";
+}
+$("btnExportAll").onclick = () => { const rows = []; store.keys().sort().forEach(k => rows.push(...(store.get(k, {}).rows || []))); if (rows.length) download("all_trials.csv", toCSV(rows)); };
+$("btnExportAllQ").onclick = () => { const rows = []; store.keys().sort().forEach(k => { const s = store.get(k, {}); if (s.tlx) rows.push(...qRows({ tlx: s.tlx, survey: s.survey || [] })); }); if (rows.length) download("all_questionnaires.csv", toCSV(rows)); };
+$("btnClear").onclick = () => { if (confirm("Delete ALL saved participant data on this phone? Download it first!")) { store.keys().forEach(k => store.del(k)); refreshSaved(); } };
+function fillSettings() { $("setVmax").value = CFG.vmax; $("setStep").value = CFG.step; $("setTimeout").value = CFG.timeout / 1000; }
+$("btnSaveSet").onclick = () => {
+  CFG.vmax = clamp(+$("setVmax").value || 900, 100, 4000); CFG.step = clamp(+$("setStep").value || 4, 1, 20); CFG.timeout = clamp(+$("setTimeout").value || 60, 10, 300) * 1000;
+  saveSettings(); alert("Saved.");
+};
+fillSettings(); refreshSaved();
+
+/* ================= showcase mode ================= */
+function openDemo() {
+  trial = null; demo = true;
+  document.querySelectorAll(".ln.tg").forEach(e => e.classList.remove("tg"));
+  $("dock").style.display = "block"; $("box").style.display = "none"; $("list").style.display = "none"; $("article").style.display = "block";
+  $("hudR").textContent = "● LIVE"; $("hud2").textContent = "Weeknight Kitchen";
+  show("task"); layout(); syncTune();
+  sc.scrollTop = 0; setMode("P"); setInput(true); wake();
+}
+$("btnDemo").onclick = async () => {
+  try { await startMic(); } catch (e) {}
+  if (cal) openDemo(); else beginCal(openDemo);
+};
+document.querySelectorAll("#dock button[data-m]").forEach(b => b.onclick = () => { setMode(b.dataset.m); setInput(true); });
+$("btnDemoExit").onclick = () => { demo = false; $("dock").style.display = "none"; $("tune").classList.remove("on"); setInput(false); fillSettings(); show("sStart"); };
+$("btnTune").onclick = () => { $("tune").classList.toggle("on"); $("btnTune").className = $("tune").classList.contains("on") ? "" : "sec"; layout(); };
+function syncTune() {
+  $("tVmax").value = CFG.vmax; $("vVmax").textContent = (CFG.vmax / CFG.lineH).toFixed(0) + " lines/s";
+  $("tDz").value = cal ? cal.dz : 1.5; $("vDz").textContent = "±" + (cal ? cal.dz : 1.5).toFixed(1) + " st";
+  $("tExpo").value = CFG.expo; $("vExpo").textContent = (+CFG.expo).toFixed(1);
+  $("tStep").value = CFG.step; $("vStep").textContent = CFG.step + " lines";
+}
+$("tVmax").oninput = e => { CFG.vmax = +e.target.value; saveSettings(); syncTune(); };
+$("tExpo").oninput = e => { CFG.expo = +e.target.value; saveSettings(); syncTune(); };
+$("tStep").oninput = e => { CFG.step = +e.target.value; saveSettings(); syncTune(); };
+$("tDz").oninput = e => { if (cal) { cal.dz = +e.target.value; store.set("humscroll_cal", cal); } syncTune(); };
+$("btnTuneReset").onclick = () => { Object.assign(CFG, DEFAULTS); saveSettings(); if (cal) { cal.dz = clamp(0.35 * Math.min(cal.hiSt, -cal.loSt), 1, 2.5); store.set("humscroll_cal", cal); } syncTune(); };
+$("btnTuneRecal").onclick = () => { setInput(false); beginCal(openDemo); };
+document.addEventListener("keydown", e => {
+  if (!demo || !$("task").classList.contains("on")) return;
+  const k = { "1": "P", "2": "D", "3": "S" }[e.key];
+  if (k) { setMode(k); setInput(true); }
+  if (e.key === "t") $("btnTune").click();
+});
+</script>
+</body>
+</html>
