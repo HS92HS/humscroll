@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#ffffff">
+<title>Hum to Scroll: Study</title>
+<style>
+:root{--bg:#f5f5f6;--card:#ffffff;--ink:#1d1f23;--mute:#5f6368;--line:#d9dbe0;--accent:#2b5fd9;--accent-ink:#ffffff;--ok:#1e7b34;--bad:#b3261e;--amber:#f2b600}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent;overflow-x:hidden}
+.screen{display:none;max-width:480px;margin:0 auto;padding:20px 16px 40px}
+.screen.on{display:block}
+.step{font-size:13px;color:var(--mute);margin-top:6px}
+h1{font-size:22px;margin:4px 0 8px;line-height:1.25}
+h2{font-size:19px;margin:4px 0 8px;line-height:1.3}
+p{margin:6px 0 12px}
+.mute{color:var(--mute);font-size:14px}
+.err{color:var(--bad);font-weight:600}
+.okc{color:var(--ok);font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:12px 0}
+button{font:inherit;font-weight:600;width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer}
+button.sec{background:#fff;color:var(--ink);border-color:var(--line)}
+button:disabled{opacity:.5;cursor:default}
+input,textarea,select{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+input:focus,textarea:focus,select:focus{outline:2px solid #b9cdf7;border-color:var(--accent)}
+label{display:block;font-weight:600;margin:12px 0 6px}
+.opt{display:block;text-align:left;background:#fff;color:var(--ink);border:1px solid var(--line);padding:14px;margin:10px 0;font-weight:400}
+.opt b{display:block;font-size:16px;margin-bottom:2px}
+.opt span{color:var(--mute);font-size:14px}
+.bar{height:8px;background:#ececef;border-radius:4px;overflow:hidden}
+.bar>i{display:block;height:100%;width:0;background:var(--accent)}
+.steps{display:flex;gap:6px;margin:8px 0 12px}
+.steps i{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.steps i.on{background:var(--accent)}
+.slider{margin:10px 0}
+.slider .ends{display:flex;justify-content:space-between;font-size:12px;color:var(--mute)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+details.box{margin-top:24px;border-top:1px solid var(--line);padding-top:8px}
+details summary{cursor:pointer;color:var(--mute);font-weight:600;padding:6px 0}
+.sum{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;white-space:pre-wrap;background:#fafafa;border:1px solid var(--line);border-radius:8px;padding:12px}
+
+/* ---------- feed ---------- */
+#feed{display:none;position:fixed;inset:0;background:#000;overflow:hidden}
+#feed.on{display:block}
+#fscroll{position:absolute;inset:0;overflow-y:hidden;overscroll-behavior:contain;scrollbar-width:none}
+#fscroll::-webkit-scrollbar{display:none}
+#fscroll.swipe{overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+#fscroll.snap{scroll-snap-type:y mandatory}
+#fscroll.lock{touch-action:none}
+.clip{position:relative;height:100%;overflow:hidden;scroll-snap-align:start;scroll-snap-stop:always;background:#000}
+.clip .yt{position:absolute;inset:0;background:#000;overflow:hidden}
+.clip .yt .poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .3s}
+.clip .yt.ready .poster{opacity:0}
+.clip .yt iframe{position:absolute;left:0;top:0;width:100%;height:100%;border:0;pointer-events:none}
+.clip .shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.45),transparent 18%,transparent 65%,rgba(0,0,0,.6))}
+.clip .num{position:absolute;left:12px;top:calc(var(--topH,96px) + 8px);font:600 12px system-ui,sans-serif;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.18);color:#fff}
+.clip.tg .num{background:var(--amber);color:#111;font-size:15px}
+.clip.tg{box-shadow:inset 0 0 0 3px var(--amber)}
+.clip .rail{position:absolute;right:12px;bottom:calc(var(--dockH,0px) + 110px);display:flex;flex-direction:column;gap:12px;align-items:center}
+.clip .rbtn{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.4);color:#fff;text-decoration:none}
+.clip .rbtn svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.clip .cap{position:absolute;left:14px;right:72px;bottom:calc(var(--dockH,0px) + 28px);color:#fff}
+.clip .cap .chip{display:inline-block;padding:3px 8px;border-radius:6px;background:#fff;color:#111;font-size:12px;font-weight:600}
+.clip .cap p{margin:6px 0 0;font-size:14px;line-height:1.35}
+.clip:not(.playing) *{animation-play-state:paused!important}
+#ftop{position:absolute;left:0;right:0;top:0;z-index:11;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:rgba(0,0,0,.6);color:#fff;pointer-events:none}
+#ftop .row1{display:flex;align-items:center;gap:8px}
+#modeChip{pointer-events:auto;width:auto;margin:0;padding:6px 12px;border:0;border-radius:6px;background:#fff;color:#111;font-size:14px}
+#ftopR{margin-left:auto;font-size:12px;color:#fff}
+#target{margin-top:6px;font-size:18px;font-weight:600}
+#target b{background:var(--amber);color:#111;padding:0 6px;border-radius:4px}
+#legend{margin-top:4px;font-size:13px;color:#e8e8e8}
+#flash{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:8;font-size:56px;font-weight:700;opacity:0;transition:opacity .2s;pointer-events:none;color:#fff}
+#flash.on{opacity:1}
+#overlay{position:absolute;inset:0;z-index:10;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.85);color:#fff;text-align:center;padding:20px}
+#overlay.on{display:flex}
+#overlay .big{font-size:64px;font-weight:700}
+#ovText{font-size:18px}
+#wash{position:absolute;right:12px;top:40%;z-index:9;width:205px;display:none;background:#fff;color:var(--ink);border-radius:10px;padding:12px 14px;box-shadow:0 2px 12px rgba(0,0,0,.35)}
+#wash.on{display:block}
+#wash .bar>i{background:var(--amber)}
+#sheet{position:absolute;left:0;right:0;bottom:0;z-index:12;background:#fff;color:var(--ink);border-radius:14px 14px 0 0;padding:12px 16px 16px;padding-bottom:max(16px,env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .25s;max-height:85%;overflow-y:auto}
+#sheet.on{transform:none}
+#sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 10px}
+#sheet .opt{margin:8px 0}
+.mini{display:flex;gap:8px}
+.mini button{margin:4px 0}
+</style>
+</head>
+<body>
+
+<!-- STEP 1: STUDENT ID -->
+<section class="screen on" id="sId">
+  <div class="step">Step 1 of 3</div>
+  <h1>Hum to Scroll: study</h1>
+  <p class="mute">Enter your student ID. It has 7 digits.</p>
+  <div class="card">
+    <label for="sidInput">Student ID</label>
+    <input id="sidInput" type="text" inputmode="numeric" maxlength="7" placeholder="e.g. 3785639" autocomplete="off">
+    <p class="err" id="sidErr"></p>
+    <button id="btnSidNext">Next</button>
+  </div>
+
+  <details class="box">
+    <summary>Setup</summary>
+    <label for="ytInput">YouTube Shorts list (one link per line)</label>
+    <textarea id="ytInput" rows="4"></textarea>
+    <button class="sec" id="btnYtSave">Save list</button>
+    <p class="mute" id="ytInfo"></p>
+    <button class="sec" id="btnTry">Try the feed (not saved)</button>
+    <button class="sec" id="btnExportAll">Download all saved data (CSV)</button>
+    <button class="sec" id="btnClear" style="color:var(--bad)">Delete all saved data on this phone</button>
+    <p class="mute" id="savedInfo"></p>
+  </details>
+</section>
+
+<!-- STEP 2: METHOD -->
+<section class="screen" id="sMethod">
+  <div class="step">Step 2 of 3</div>
+  <h2>Choose a method</h2>
+  <p class="mute">Student ID: <b id="mSid"></b></p>
+  <div id="methodHost"></div>
+  <button class="sec" id="btnMethodBack">Back</button>
+</section>
+
+<!-- STEP 3: INTRO -->
+<section class="screen" id="sIntro">
+  <div class="step" id="introNo"></div>
+  <h2 id="introTitle"></h2>
+  <div class="card" id="introText"></div>
+  <div class="card">
+    <b>Your task</b>
+    <p>A video number appears at the top, for example "Go to video #57". Swipe to that video (its number is highlighted) and stay on it for a moment. The next target then appears. Be quick but careful.</p>
+    <p class="mute" style="margin:0">There are 3 rounds in total.</p>
+  </div>
+  <button id="btnIntroGo">Start</button>
+</section>
+
+<!-- QUESTIONS -->
+<section class="screen" id="sTLX">
+  <div class="step">Questions</div>
+  <h2>How was that?</h2>
+  <p class="mute" id="tlxCond"></p>
+  <div id="tlxHost"></div>
+  <button id="btnTLX">Continue</button>
+</section>
+
+<!-- SUBMIT -->
+<section class="screen" id="sSubmit">
+  <div class="step">Last step</div>
+  <h2>Check and submit</h2>
+  <div class="sum" id="sumBox"></div>
+  <label for="sComment">Comments (optional)</label>
+  <textarea id="sComment" rows="3"></textarea>
+  <button id="btnSubmit">Submit study</button>
+  <p id="subMsg" class="mute"></p>
+  <button class="sec" id="btnDlCopy">Download a copy (CSV)</button>
+</section>
+
+<!-- DONE -->
+<section class="screen" id="sDone">
+  <div class="step">Complete</div>
+  <h2>Thank you</h2>
+  <p class="mute" id="doneMsg"></p>
+  <button id="btnNext">Next student</button>
+</section>
+
+<!-- FEED VIEW -->
+<div id="feed">
+  <div id="fscroll"></div>
+  <div id="ftop"><div class="row1"><button id="modeChip"></button><span id="ftopR"></span></div><div id="target"></div><div id="legend"></div></div>
+  <div id="flash"></div>
+  <div id="wash">
+    <div class="step">Messy hands</div>
+    <p style="margin:6px 0 10px;font-size:15px">Please wash or clean your hands. Then you will be able to scroll.</p>
+    <div class="bar"><i id="washBar"></i></div>
+    <p class="mute" style="margin:6px 0 0"><span id="washSec"></span> s</p>
+  </div>
+  <div id="overlay"><div><div id="ovSmall" class="mute" style="color:#ddd"></div><div class="big" id="ovBig"></div><div id="ovText"></div></div></div>
+  <div id="sheet">
+    <div class="grab"></div>
+    <div class="step">Method</div>
+    <div id="sheetModes"></div>
+    <div class="mini"><button id="btnSheetClose">Back to feed</button><button class="sec" id="btnFeedExit">Exit</button></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================= settings ================= */
+// Google Apps Script web app link that writes submissions into your Google Sheet (see the guide). Leave as is until set up.
+const SUBMIT_URL = "https://script.google.com/macros/s/AKfycbzXLNGJWLxC8o7a5TcLumDm4c-r5QbJDq0EaqYztnoD2_hr6Mu7vBCSvx_XlPSTyIZf/exec";
+const APP_VERSION = "study-v7";
+const CFG = { items: 200, startItem: 100, dwell: 800, zone: 0.2, distances: [3, 6, 12], reps: 1, practice: 0, timeout: 60000, cleanMs: 5000 };
+const METHODS = {
+  S: { name: "Swipe (clean hands)", short: "Swipe", desc: "Normal finger swiping with clean hands. This is the baseline. Do not touch the screen with anything but a clean finger." },
+  M: { name: "Swipe (messy hands)", short: "Messy hands", desc: "Your hands are messy, as when cooking. After each swipe, a box on the side asks you to wash or clean your hands. You can scroll again when the box goes away." }
+};
+const PICK_DESC = { S: "Normal finger swiping with clean hands. The baseline.", M: "Your hands get messy after each swipe. Wash them when the box asks." };
+const METHOD_KEYS = "SM";
+const LEGEND = { S: "Swipe up or down with one finger", M: "Your hands are messy. Wash them when the box asks." };
+const TLX = [
+  ["mental", "Mental demand", "How much thinking was needed?", "Very low", "Very high"],
+  ["physical", "Physical demand", "How physically tiring was it?", "Very low", "Very high"],
+  ["temporal", "Time pressure", "How rushed did you feel?", "Very low", "Very high"],
+  ["performance", "Performance", "How well did you do?", "Perfect", "Failure"],
+  ["effort", "Effort", "How hard did you have to work?", "Very low", "Very high"],
+  ["frustration", "Frustration", "How annoyed or stressed were you?", "Very low", "Very high"]
+];
+const DEFAULT_YT = ["zPxQjuFoUBc", "NcySMwJ3w2Y", "WenahXu2Z-4", "JZTVokYeEVc"];
+
+/* ================= storage ================= */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+  keys() { try { return Object.keys(localStorage).filter(k => k.startsWith("study_")).sort(); } catch (e) { return []; } }
+};
+const studyKey = (id, m) => "study_" + id + "_" + m;
+
+/* ================= helpers ================= */
+const $ = id => document.getElementById(id);
+const now = () => performance.now();
+const median = a => { if (!a.length) return NaN; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : NaN;
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const r1 = x => isNaN(x) ? "" : Math.round(x * 10) / 10;
+function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id)); $("feed").classList.toggle("on", id === "feed"); window.scrollTo(0, 0); }
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function toCSV(rows) {
+  if (!rows.length) return "";
+  const cols = Object.keys(rows[0]);
+  const esc = v => { v = v == null ? "" : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  return cols.join(",") + "\n" + rows.map(r => cols.map(c => esc(r[c])).join(",")).join("\n") + "\n";
+}
+function download(name, text) {
+  const blob = new Blob([text], { type: "text/csv" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function wake() { try { navigator.wakeLock && navigator.wakeLock.request("screen").catch(() => {}); } catch (e) {} }
+
+/* ================= YouTube Shorts feed ================= */
+// Accepts full links (youtube.com/shorts/ID, youtu.be/ID, watch?v=ID) or bare 11-character IDs.
+function parseYT(text) {
+  const out = [], seen = new Set();
+  for (const tok of String(text).split(/[\s,]+/)) {
+    if (!tok) continue;
+    const m = tok.match(/(?:[?&]v=|shorts\/|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/) || tok.match(/^([A-Za-z0-9_-]{11})$/);
+    if (m && !seen.has(m[1])) { seen.add(m[1]); out.push(m[1]); }
+  }
+  return out;
+}
+const savedYt = store.get("yt_list", null);
+let ytList = Array.isArray(savedYt) && savedYt.length ? savedYt.filter(id => /^[A-Za-z0-9_-]{11}$/.test(id)) : DEFAULT_YT.slice();
+let io = null, loadIO = null;
+const ytSrc = id => "https://www.youtube.com/embed/" + id + "?enablejsapi=1&playsinline=1&mute=1&controls=0&loop=1&playlist=" + id +
+  "&rel=0&modestbranding=1&iv_load_policy=3&origin=" + encodeURIComponent(location.origin);
+function ytSend(f, obj) { try { f.contentWindow.postMessage(JSON.stringify(obj), "*"); } catch (e) {} }
+function ytCmd(f, func) { ytSend(f, { event: "command", func, args: "" }); }
+function buildFeed() {
+  const host = $("fscroll"); host.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  for (let i = 1; i <= CFG.items && ytList.length; i++) {
+    const d = document.createElement("div"); d.className = "clip"; d.id = "C" + i; d.dataset.i = i;
+    const id = ytList[(i - 1) % ytList.length];
+    d.dataset.yt = id;
+    const media = `<div class="yt"><img class="poster" alt="" loading="lazy" src="https://i.ytimg.com/vi/${id}/hqdefault.jpg"><iframe title="Video ${i}" allow="autoplay; encrypted-media"></iframe></div>`;
+    const link = `<a class="rbtn" href="https://www.youtube.com/shorts/${id}" target="_blank" rel="noopener" title="Open on YouTube"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M10 6H5v13h13v-5"/></svg></a>`;
+    d.innerHTML = media + `<div class="shade"></div><div class="num">#${i}</div><div class="rail">${link}</div><div class="cap"><span class="chip">YouTube Shorts</span><p>Muted for a clean feed.</p></div>`;
+    frag.appendChild(d);
+  }
+  host.appendChild(frag);
+  observeClips();
+}
+function observeClips() {
+  if (io) io.disconnect(); if (loadIO) loadIO.disconnect();
+  io = new IntersectionObserver(entries => {
+    for (const e of entries) {
+      const c = e.target, vis = e.intersectionRatio > 0.55;
+      c.classList.toggle("playing", vis);
+      const f = c.querySelector("iframe");
+      if (f && c.dataset.yt && f.getAttribute("src")) ytCmd(f, vis ? "playVideo" : "pauseVideo");
+    }
+  }, { root: $("fscroll"), threshold: [0, 0.55, 1] });
+  loadIO = new IntersectionObserver(entries => {
+    for (const e of entries) {
+      const c = e.target, f = c.querySelector("iframe");
+      if (!f || !c.dataset.yt) continue;
+      if (e.isIntersecting) { if (!f.getAttribute("src")) f.src = ytSrc(c.dataset.yt); }
+      else if (f.getAttribute("src")) { f.removeAttribute("src"); c.querySelector(".yt").classList.remove("ready"); }
+    }
+  }, { root: $("fscroll"), rootMargin: "120% 0px" });
+  document.querySelectorAll(".clip").forEach(c => { io.observe(c); loadIO.observe(c); });
+}
+$("fscroll").addEventListener("load", e => {
+  const f = e.target;
+  if (!(f instanceof HTMLIFrameElement)) return;
+  const c = f.closest(".clip"); if (!c || !c.dataset.yt || !f.getAttribute("src")) return;
+  c.querySelector(".yt").classList.add("ready");
+  ytSend(f, { event: "listening" });
+  setTimeout(() => { ytSend(f, { event: "command", func: "mute", args: "" }); if (c.classList.contains("playing")) ytCmd(f, "playVideo"); }, 400);
+}, true);
+buildFeed();
+$("ytInput").value = ytList.map(id => "https://www.youtube.com/shorts/" + id).join("\n");
+$("ytInfo").innerHTML = `<span class="okc">${ytList.length} Shorts ready.</span>`;
+$("btnYtSave").onclick = () => {
+  ytList = parseYT($("ytInput").value);
+  store.set("yt_list", ytList);
+  $("ytInfo").innerHTML = ytList.length ? `<span class="okc">${ytList.length} Shorts saved.</span>` : '<span class="err">No valid links found. Paste links like https://www.youtube.com/shorts/xxxxxxxxxxx</span>';
+  buildFeed();
+};
+
+/* ================= feed layout + control ================= */
+const sc = $("fscroll");
+let demo = false, mode = "S", inputOn = false, pos = 0, aim = 0, vel = 0, lastSwipe = 0, lastScrollTop = 0, lastMoveT = 0;
+const H = () => sc.clientHeight || 1;
+const curPos = () => sc.scrollTop / H();
+const curItem = () => clamp(Math.round(curPos()) + 1, 1, CFG.items);
+const maxScroll = () => sc.scrollHeight - sc.clientHeight;
+function goItem(n) { sc.scrollTop = (n - 1) * H(); pos = aim = sc.scrollTop; }
+function layout() { sc.style.setProperty("--topH", $("ftop").offsetHeight + "px"); }
+window.addEventListener("resize", () => { if ($("feed").classList.contains("on")) { const it = curItem(); layout(); goItem(it); } });
+function flash(txt, col) { const f = $("flash"); f.textContent = txt; f.style.color = col || "#fff"; f.classList.add("on"); clearTimeout(flash.t); flash.t = setTimeout(() => f.classList.remove("on"), 300); }
+const wash = { on: false, t0: 0, dur: 15000, raf: 0, onDone: null };
+let cleanBase = null; // scroll position after the last wash (showcase only)
+function applyScrollClass() {
+  const touch = (mode === "S" || mode === "M") && inputOn && !wash.on;
+  sc.className = touch ? "swipe snap" : "lock";
+}
+function setMode(m) {
+  mode = m; pos = aim = sc.scrollTop; vel = 0;
+  $("modeChip").textContent = METHODS[m].short + (demo ? "  ▾" : "");
+  $("legend").textContent = LEGEND[m] || "";
+  cleanBase = m === "M" && demo ? sc.scrollTop : null;
+  onModeChange(m);
+  renderModeLists();
+  applyScrollClass();
+}
+function onModeChange(m) {}
+function setInput(on) { inputOn = on; pos = aim = sc.scrollTop; vel = 0; applyScrollClass(); }
+
+function clipDuration(item) { const c = $("C" + item); return c && +c.dataset.dur > 0 ? +c.dataset.dur : 15000; }
+function startWash(onDone) {
+  wash.dur = clipDuration(curItem()); wash.t0 = now(); wash.on = true; wash.onDone = onDone || null;
+  $("wash").classList.add("on"); applyScrollClass();
+  cancelAnimationFrame(wash.raf);
+  (function tick() {
+    if (!wash.on) return;
+    const f = (now() - wash.t0) / wash.dur;
+    $("washBar").style.width = clamp(f * 100, 0, 100) + "%";
+    $("washSec").textContent = Math.max(0, Math.ceil((wash.dur - (now() - wash.t0)) / 1000));
+    if (f < 1) wash.raf = requestAnimationFrame(tick); else endWash();
+  })();
+}
+function hideWash() { cancelAnimationFrame(wash.raf); wash.on = false; wash.onDone = null; $("wash").classList.remove("on"); applyScrollClass(); }
+function endWash() {
+  if (!wash.on) return;
+  const cb = wash.onDone;
+  hideWash();
+  if (demo) cleanBase = sc.scrollTop;
+  if (cb) cb();
+}
+// showcase: after a swipe stops on a new video, the hands are messy again
+function lockCheck(t) {
+  if (!demo || mode !== "M" || wash.on || cleanBase === null) return;
+  if (Math.abs(sc.scrollTop - cleanBase) > 3 && t - lastMoveT > 700) startWash();
+}
+// the YouTube player reports each video's length; the wash time equals that length
+window.addEventListener("message", e => {
+  let d = e.data;
+  if (typeof d === "string") { try { d = JSON.parse(d); } catch (x) { return; } }
+  if (!d || d.event !== "infoDelivery" || !d.info || !(d.info.duration > 0)) return;
+  const f = [...document.querySelectorAll("#fscroll iframe")].find(fr => fr.contentWindow === e.source);
+  const c = f && f.closest(".clip"); if (c) c.dataset.dur = String(Math.round(d.info.duration * 1000));
+});
+let lastT = now();
+function onFrame(t, dt) {}
+function loop() {
+  const t = now(), dt = Math.min(0.05, (t - lastT) / 1000); lastT = t;
+  if ($("feed").classList.contains("on")) {
+    layout();
+    vel = dt ? (sc.scrollTop - lastSwipe) / dt : 0; lastSwipe = sc.scrollTop;
+    if (Math.abs(sc.scrollTop - lastScrollTop) > 0.5) lastMoveT = t;
+    lastScrollTop = sc.scrollTop;
+    onFrame(t, dt);
+    if (demo || trial) lockCheck(t);
+    if (demo) $("ftopR").textContent = "LIVE · #" + curItem();
+    if (trial && trial.running) checkTrial(t);
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ================= method lists (feed sheet, showcase only) ================= */
+function renderModeLists() {
+  $("sheetModes").innerHTML = METHOD_KEYS.split("").map(c => `<button class="opt" data-m="${c}" style="${c === mode ? "border-color:var(--accent)" : ""}"><b>${METHODS[c].name}</b><span>${PICK_DESC[c]}</span></button>`).join("");
+  document.querySelectorAll("#sheetModes .opt").forEach(el => el.onclick = () => switchDemo(el.dataset.m));
+}
+function switchDemo(m) { $("sheet").classList.remove("on"); setMode(m); setInput(true); }
+$("modeChip").onclick = () => { if (demo) { renderModeLists(); $("sheet").classList.add("on"); } };
+$("btnSheetClose").onclick = () => $("sheet").classList.remove("on");
+$("btnFeedExit").onclick = () => { demo = false; trial = null; $("sheet").classList.remove("on"); hideWash(); setInput(false); exitToStart(); };
+function exitToStart() { refreshSaved(); show("sId"); }
+
+/* ================= showcase (not saved) ================= */
+function openDemo(m) {
+  if (!ytList.length) { show("sId"); $("ytInfo").innerHTML = '<span class="err">Save at least one Shorts link first.</span>'; return; }
+  trial = null; demo = true; $("target").textContent = "";
+  show("feed"); layout();
+  if (sc.scrollTop === 0) goItem(1);
+  setMode(m); setInput(true); wake();
+}
+$("btnTry").onclick = () => openDemo("S");
+
+/* ================= STEP 1: student ID ================= */
+let SID = "", S = null, trial = null, METHOD = "S";
+$("sidInput").addEventListener("input", () => { $("sidInput").value = $("sidInput").value.replace(/\D/g, "").slice(0, 7); });
+$("btnSidNext").onclick = () => {
+  const id = $("sidInput").value.trim();
+  if (!/^\d{7}$/.test(id)) { $("sidErr").textContent = "Please enter your 7-digit student ID, for example 3785639."; return; }
+  $("sidErr").textContent = "";
+  SID = id; $("mSid").textContent = SID;
+  renderMethods(); show("sMethod");
+};
+$("sidInput").addEventListener("keydown", e => { if (e.key === "Enter") $("btnSidNext").click(); });
+
+/* ================= STEP 2: method ================= */
+function renderMethods() {
+  $("methodHost").innerHTML = METHOD_KEYS.split("").map(c => `<button class="opt" data-m="${c}"><b>${METHODS[c].name}</b><span>${PICK_DESC[c]}</span></button>`).join("");
+  document.querySelectorAll("#methodHost .opt").forEach(el => el.onclick = () => chooseMethod(el.dataset.m));
+}
+$("btnMethodBack").onclick = () => show("sId");
+function chooseMethod(m) {
+  METHOD = m;
+  S = { id: SID, method: m, rows: [], clean: [], tlx: [], ti: -1, trials: [] };
+  startIntro();
+}
+
+/* ================= STEP 3: the swiping task ================= */
+function startIntro() {
+  $("introNo").textContent = "Step 3 of 3 · Swiping task";
+  $("introTitle").textContent = METHODS[METHOD].name;
+  $("introText").innerHTML = `<p style="margin-top:0">${METHODS[METHOD].desc}</p>`;
+  show("sIntro");
+}
+$("btnIntroGo").onclick = () => {
+  S.trials = makeTrials(); S.ti = -1;
+  demo = false; trial = null;
+  show("feed"); layout(); setMode(METHOD); setInput(false);
+  $("ftopR").textContent = "0/" + S.trials.length;
+  goItem(CFG.startItem);
+  nextTrial();
+};
+// Three timed swiping tasks: one short, one medium, one long jump, in random order and direction.
+function makeTrials() {
+  return shuffle(CFG.distances.map(d => ({ d, dir: Math.random() < .5 ? -1 : 1, practice: 0 })));
+}
+function nextTrial() {
+  S.ti++;
+  if (S.ti >= S.trials.length) {
+    trial = null; setInput(false); document.querySelectorAll(".clip.tg").forEach(e => e.classList.remove("tg"));
+    $("target").textContent = ""; $("ftopR").textContent = `${S.trials.length}/${S.trials.length}`;
+    setTimeout(() => { demo = false; S.tlx = []; showSubmit(); }, 900);
+    return;
+  }
+  const spec = S.trials[S.ti], start = curItem();
+  let dir = spec.dir, target = start + dir * spec.d;
+  if (target < 2 || target > CFG.items - 1) { dir = -dir; target = start + dir * spec.d; }
+  document.querySelectorAll(".clip.tg").forEach(e => e.classList.remove("tg"));
+  $("C" + target).classList.add("tg");
+  $("ftopR").textContent = `${S.ti}/${S.trials.length}`;
+  $("target").innerHTML = `Go to video <b>#${target}</b> ${dir < 0 ? "▲" : "▼"}`;
+  trial = { spec, start, target, dir, running: false, t0: 0, inZone: false, dwellStart: 0, firstEntry: null, entries: 0, overs: 0, path: 0, lastPos: curPos() };
+  setInput(false);
+  overlay(spec.practice ? "Practice" : "Get ready", "3", `Video #${target} is ${dir < 0 ? "above" : "below"} (${spec.d} away)`);
+  let n = 3;
+  const iv = setInterval(() => {
+    n--;
+    if (n > 0) { $("ovBig").textContent = n; return; }
+    clearInterval(iv); overlayOff();
+    if (!trial) return;
+    trial.running = true; trial.t0 = now(); trial.lastPos = curPos(); setInput(true);
+  }, 700);
+}
+function overlay(small, big, text) { $("ovSmall").textContent = small || ""; $("ovBig").textContent = big || ""; $("ovText").innerHTML = text || ""; $("overlay").classList.add("on"); }
+function overlayOff() { $("overlay").classList.remove("on"); }
+function checkTrial(t) {
+  const p = curPos(), inZone = Math.abs(p - (trial.target - 1)) < CFG.zone;
+  trial.path += Math.abs(p - trial.lastPos); trial.lastPos = p;
+  if (inZone && !trial.inZone) { trial.entries++; trial.dwellStart = t; if (trial.firstEntry == null) trial.firstEntry = t - trial.t0; }
+  if (!inZone && trial.inZone) trial.overs++;
+  trial.inZone = inZone;
+  if (inZone && t - trial.dwellStart >= CFG.dwell) finishTrial(t, false);
+  else if (t - trial.t0 > CFG.timeout) finishTrial(t, true);
+}
+function finishTrial(t, timedOut) {
+  trial.running = false; setInput(false);
+  const tr = trial;
+  S.rows.push({
+    student_id: SID, method: METHODS[METHOD].name, practice: tr.spec.practice, trial: S.ti + 1,
+    distance_videos: tr.spec.d, direction: tr.dir < 0 ? "up" : "down", start_video: tr.start, target_video: tr.target,
+    time_ms: timedOut ? "" : Math.round(tr.dwellStart - tr.t0), total_ms: Math.round(t - tr.t0),
+    first_entry_ms: tr.firstEntry == null ? "" : Math.round(tr.firstEntry),
+    overshoots: tr.overs, target_entries: tr.entries, path_videos: tr.path.toFixed(2), timed_out: timedOut ? 1 : 0, wash_ms: METHOD === "M" ? clipDuration(curItem()) : "",
+    timestamp: new Date().toISOString()
+  });
+  store.set(studyKey(SID, METHOD), { rows: S.rows, clean: S.clean, tlx: S.tlx, saved: Date.now(), submitted: false });
+  flash(timedOut ? "⏱" : "✓", timedOut ? "#ffb4ab" : "#8ef0a8");
+  if (METHOD === "M") startWash(nextTrial); else setTimeout(nextTrial, 450);
+}
+
+/* ================= questions ================= */
+function endTasks() {
+  show("sTLX");
+  $("tlxCond").textContent = "About: " + METHODS[METHOD].name + ". Move each slider.";
+  $("tlxHost").innerHTML = TLX.map(([k, n, q, lo, hi]) => `<div class="card"><b>${n}</b><div class="mute">${q}</div><input type="range" min="0" max="100" step="5" value="50" id="tlx_${k}"><div class="slider ends" style="margin:0"><span>${lo}</span><span>${hi}</span></div></div>`).join("");
+}
+$("btnTLX").onclick = () => {
+  const r = {};
+  TLX.forEach(([k]) => { r[k] = +$("tlx_" + k).value; });
+  r.raw_tlx = r1(mean(TLX.map(([k]) => r[k])));
+  S.tlx = [r];
+  store.set(studyKey(SID, METHOD), { rows: S.rows, clean: S.clean, tlx: S.tlx, saved: Date.now(), submitted: false });
+  showSubmit();
+};
+
+/* ================= summary + submit ================= */
+function buildSummary() {
+  const real = S.rows.filter(r => !r.practice), timed = real.filter(r => r.time_ms !== "");
+  const med = timed.length ? Math.round(median(timed.map(r => r.time_ms))) : "";
+  const washes = real.filter(r => r.wash_ms !== "").map(r => r.wash_ms);
+  const t = S.tlx[0] || {};
+  return {
+    student_id: SID, method: METHODS[METHOD].name, date: new Date().toISOString().slice(0, 10),
+    timed_rounds: timed.length, timeouts: real.filter(r => r.timed_out === 1).length,
+    median_time_ms: med,
+    mean_overshoots: r1(mean(real.map(r => r.overshoots))), mean_path_videos: r1(mean(real.map(r => +r.path_videos))),
+    wash_ms_median: METHOD === "M" && washes.length ? Math.round(median(washes)) : "",
+    tlx_mental: t.mental ?? "", tlx_physical: t.physical ?? "", tlx_temporal: t.temporal ?? "",
+    tlx_performance: t.performance ?? "", tlx_effort: t.effort ?? "", tlx_frustration: t.frustration ?? "", tlx_raw: t.raw_tlx ?? "",
+    app_version: APP_VERSION
+  };
+}
+function showSubmit() {
+  const sum = buildSummary();
+  $("sumBox").textContent = Object.entries(sum).map(([k, v]) => k + ": " + v).join("\n");
+  $("subMsg").textContent = ""; $("btnSubmit").disabled = false;
+  show("sSubmit");
+}
+function payload() {
+  const sum = buildSummary(); sum.comment = $("sComment").value.trim();
+  const trials = S.rows.map(r => Object.assign({}, r));
+  return { summary: sum, trials };
+}
+$("btnSubmit").onclick = async () => {
+  const data = payload();
+  store.set(studyKey(SID, METHOD), { rows: S.rows, clean: S.clean, tlx: S.tlx, comment: data.summary.comment, saved: Date.now(), submitted: false });
+  if (!SUBMIT_URL || SUBMIT_URL.startsWith("PASTE")) {
+    $("subMsg").innerHTML = '<span class="err">Sending is not available right now. Your answers are saved on this phone. Tap Download a copy.</span>';
+    return;
+  }
+  $("btnSubmit").disabled = true; $("subMsg").textContent = "Sending...";
+  try {
+    await fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(data) });
+    store.set(studyKey(SID, METHOD), { rows: S.rows, clean: S.clean, tlx: S.tlx, comment: data.summary.comment, saved: Date.now(), submitted: true });
+    $("doneMsg").textContent = `Your answers for ${SID} · ${METHODS[METHOD].name} were sent. Click "Next student" to continue.`;
+    show("sDone");
+  } catch (e) {
+    $("subMsg").innerHTML = '<span class="err">Could not send. Check the internet connection and tap Submit again. Your data is saved on this phone.</span>';
+    $("btnSubmit").disabled = false;
+  }
+};
+$("btnDlCopy").onclick = () => {
+  const data = payload();
+  download(`${SID}_${METHOD}_summary.csv`, toCSV([data.summary]));
+  download(`${SID}_${METHOD}_trials.csv`, toCSV(data.trials));
+};
+$("btnNext").onclick = () => { SID = ""; S = null; $("sidInput").value = ""; $("sidErr").textContent = ""; show("sId"); refreshSaved(); };
+
+/* ================= researcher tools ================= */
+function refreshSaved() {
+  const ks = store.keys();
+  $("savedInfo").textContent = ks.length ? "Saved on this phone: " + ks.map(k => k.replace("study_", "").replace("_", " · ")).join(", ") : "Nothing saved yet.";
+}
+$("btnExportAll").onclick = () => {
+  const rows = [];
+  store.keys().forEach(k => {
+    const v = store.get(k, {}); const [, id, m] = k.split("_");
+    const one = { student_id: id, method: METHODS[m] ? METHODS[m].name : m, submitted: v.submitted ? "yes" : "no", saved: v.saved ? new Date(v.saved).toISOString() : "" };
+    (v.rows || []).filter(r => !r.practice).forEach(r => rows.push(Object.assign({}, one, r)));
+    if (!(v.rows || []).length) rows.push(one);
+  });
+  if (rows.length) download("all_study_data.csv", toCSV(rows));
+};
+$("btnClear").onclick = () => { if (confirm("Delete ALL saved study data on this phone? Download it first!")) { store.keys().forEach(k => store.del(k)); refreshSaved(); } };
+refreshSaved();
+</script>
+</body>
+</html>
