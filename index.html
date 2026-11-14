@@ -640,7 +640,8 @@ function onModeChange(m) {
 }
 function setInput(on) { inputOn = on; pos = aim = sc.scrollTop; vel = 0; applyScrollClass(); }
 
-function clipDuration(item) { const c = $("C" + item); return c && +c.dataset.dur > 0 ? +c.dataset.dur : 15000; }
+const WASH_MS = 8000; // fixed wash time shown after each swipe
+function clipDuration(item) { return WASH_MS; }
 function startWash(onDone) {
   wash.dur = clipDuration(curItem()); wash.t0 = now(); wash.on = true; wash.onDone = onDone || null;
   $("wash").classList.add("on"); applyScrollClass();
