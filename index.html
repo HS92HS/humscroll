@@ -159,7 +159,7 @@ details summary{cursor:pointer;color:var(--mute);font-weight:600;padding:6px 0}
   <div class="card">
     <b>Your task</b>
     <p>A video number appears at the top, for example "Go to video #57". Swipe to that video (its number is highlighted) and stay on it for a moment. The next target then appears. Be quick but careful.</p>
-    <p class="mute" style="margin:0">You start with 3 practice rounds.</p>
+    <p class="mute" style="margin:0">There are 3 rounds in total.</p>
   </div>
   <button id="btnIntroGo">Start</button>
 </section>
@@ -218,9 +218,9 @@ details summary{cursor:pointer;color:var(--mute);font-weight:600;padding:6px 0}
 "use strict";
 /* ================= settings ================= */
 // Google Apps Script web app link that writes submissions into your Google Sheet (see the guide). Leave as is until set up.
-const SUBMIT_URL = "https://script.google.com/macros/s/AKfycbzXLNGJWLxC8o7a5TcLumDm4c-r5QbJDq0EaqYztnoD2_hr6Mu7vBCSvx_XlPSTyIZf/exec";
+const SUBMIT_URL = "PASTE_APPS_SCRIPT_WEB_APP_URL_HERE";
 const APP_VERSION = "study-v6";
-const CFG = { items: 200, startItem: 100, dwell: 800, zone: 0.2, distances: [3, 6, 12], reps: 2, practice: 3, timeout: 60000, cleanMs: 5000 };
+const CFG = { items: 200, startItem: 100, dwell: 800, zone: 0.2, distances: [3, 6, 12], reps: 1, practice: 0, timeout: 60000, cleanMs: 5000 };
 const METHODS = {
   S: { name: "Swipe (clean hands)", short: "Swipe", desc: "Normal finger swiping with clean hands. This is the baseline. Do not touch the screen with anything but a clean finger." },
   M: { name: "Swipe (messy hands)", short: "Messy hands", desc: "Your hands are messy, as when cooking. You clean them first, and we measure how long that takes. Then you do the same swiping task." }
@@ -487,12 +487,9 @@ $("btnIntroGo").onclick = () => {
   goItem(CFG.startItem);
   nextTrial();
 };
+// Three timed swiping tasks: one short, one medium, one long jump, in random order and direction.
 function makeTrials() {
-  const real = [];
-  for (const d of CFG.distances) for (const dir of [-1, 1]) for (let r = 0; r < CFG.reps; r++) real.push({ d, dir, practice: 0 });
-  shuffle(real);
-  const pr = []; for (let i = 0; i < CFG.practice; i++) pr.push({ d: CFG.distances[i % CFG.distances.length], dir: Math.random() < .5 ? -1 : 1, practice: 1 });
-  return [...shuffle(pr), ...real];
+  return shuffle(CFG.distances.map(d => ({ d, dir: Math.random() < .5 ? -1 : 1, practice: 0 })));
 }
 function nextTrial() {
   S.ti++;
