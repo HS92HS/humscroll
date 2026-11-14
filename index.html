@@ -218,7 +218,7 @@ details summary{cursor:pointer;color:var(--mute);font-weight:600;padding:6px 0}
 "use strict";
 /* ================= settings ================= */
 // Google Apps Script web app link that writes submissions into your Google Sheet (see the guide). Leave as is until set up.
-const SUBMIT_URL = "https://script.google.com/macros/s/AKfycbzXLNGJWLxC8o7a5TcLumDm4c-r5QbJDq0EaqYztnoD2_hr6Mu7vBCSvx_XlPSTyIZf/exec";
+const SUBMIT_URL = "PASTE_APPS_SCRIPT_WEB_APP_URL_HERE";
 const APP_VERSION = "study-v6";
 const CFG = { items: 200, startItem: 100, dwell: 800, zone: 0.2, distances: [3, 6, 12], reps: 1, practice: 0, timeout: 60000, cleanMs: 5000 };
 const METHODS = {
@@ -483,7 +483,7 @@ $("btnIntroGo").onclick = () => {
   S.trials = makeTrials(); S.ti = -1;
   demo = false; trial = null;
   show("feed"); layout(); setMode("S"); setInput(false);
-  $("ftopR").textContent = "";
+  $("ftopR").textContent = "0/" + S.trials.length;
   goItem(CFG.startItem);
   nextTrial();
 };
@@ -493,14 +493,18 @@ function makeTrials() {
 }
 function nextTrial() {
   S.ti++;
-  if (S.ti >= S.trials.length) { trial = null; document.querySelectorAll(".clip.tg").forEach(e => e.classList.remove("tg")); $("target").textContent = ""; endTasks(); return; }
+  if (S.ti >= S.trials.length) {
+    trial = null; setInput(false); document.querySelectorAll(".clip.tg").forEach(e => e.classList.remove("tg"));
+    $("target").textContent = ""; $("ftopR").textContent = `${S.trials.length}/${S.trials.length}`;
+    setTimeout(() => { demo = false; S.tlx = []; showSubmit(); }, 900);
+    return;
+  }
   const spec = S.trials[S.ti], start = curItem();
   let dir = spec.dir, target = start + dir * spec.d;
   if (target < 2 || target > CFG.items - 1) { dir = -dir; target = start + dir * spec.d; }
   document.querySelectorAll(".clip.tg").forEach(e => e.classList.remove("tg"));
   $("C" + target).classList.add("tg");
-  const realN = S.trials.filter(x => !x.practice).length;
-  $("ftopR").textContent = spec.practice ? `PRACTICE ${S.ti + 1}/${CFG.practice}` : `ROUND ${S.ti - CFG.practice + 1}/${realN}`;
+  $("ftopR").textContent = `${S.ti}/${S.trials.length}`;
   $("target").innerHTML = `Go to video <b>#${target}</b> ${dir < 0 ? "▲" : "▼"}`;
   trial = { spec, start, target, dir, running: false, t0: 0, inZone: false, dwellStart: 0, firstEntry: null, entries: 0, overs: 0, path: 0, lastPos: curPos() };
   setInput(false);
@@ -510,6 +514,7 @@ function nextTrial() {
     n--;
     if (n > 0) { $("ovBig").textContent = n; return; }
     clearInterval(iv); overlayOff();
+    if (!trial) return;
     trial.running = true; trial.t0 = now(); trial.lastPos = curPos(); setInput(true);
   }, 700);
 }
