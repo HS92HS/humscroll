@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#241912">
+<title>H's Reel App</title>
+<style>
+:root{
+  --bg:#241912;--panel:#33241a;--panel2:#41301f;--well:#1b130d;
+  --ink:#f5e9d6;--mute:#c4ad90;--line:rgba(245,233,214,.16);
+  --sa:#e9a53b;--to:#d4553a;--sage:#9cba7d;
+  --serif:Georgia,"Times New Roman",serif;
+  --mono:ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){--bg:#241912;--panel:#33241a;--ink:#f5e9d6}
+}
+:root[data-theme="dark"]{--bg:#241912;--panel:#33241a;--ink:#f5e9d6}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent}
+button{font:inherit;cursor:pointer}
+
+/* ---------- feed ---------- */
+#feed{position:fixed;inset:0;background:#120c08}
+#fscroll{position:absolute;inset:0;overflow-y:hidden;scrollbar-width:none;overscroll-behavior:contain}
+#fscroll::-webkit-scrollbar{display:none}
+#fscroll.swipe{overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+#fscroll.lock{overflow-y:hidden;touch-action:none}
+.clip{position:relative;height:100%;overflow:hidden;background:#0c0806}
+.clip .yt{position:absolute;inset:0;background:#000;overflow:hidden}
+.clip .poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .4s}
+.clip .yt.ready .poster{opacity:0}
+.clip iframe{position:absolute;left:0;top:0;width:100%;height:100%;border:0;pointer-events:none}
+.clip .shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.45),transparent 20%,transparent 62%,rgba(0,0,0,.7))}
+.clip .cap{position:absolute;left:16px;right:76px;bottom:calc(28px + env(safe-area-inset-bottom))}
+.clip .tag{display:inline-block;padding:5px 11px;border-radius:999px;background:var(--sa);color:#2a1a0c;font:700 12px var(--mono)}
+.clip .cap p{margin:8px 0 0;font-size:14px;color:#f3e8d6;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+.clip .ext{position:absolute;right:14px;bottom:calc(120px + env(safe-area-inset-bottom));width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(36,25,18,.85);border:1px solid var(--line);color:var(--ink)}
+.clip .ext svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* header and side controls */
+#top{position:absolute;left:0;right:0;top:0;z-index:12;padding:calc(12px + env(safe-area-inset-top)) 16px 10px 72px;background:linear-gradient(180deg,rgba(18,12,8,.85),rgba(18,12,8,0));pointer-events:none}
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:36px;height:36px;flex:none}
+.logo svg{width:100%;height:100%;display:block}
+.wm{font:700 19px var(--serif);letter-spacing:.2px}
+.wm span{color:var(--sa)}
+#chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{padding:4px 10px;border-radius:999px;background:rgba(36,25,18,.9);border:1px solid var(--line);font-size:12.5px}
+.chip.off{color:var(--mute)}
+#read{margin-top:8px;font:12px var(--mono);color:var(--mute);text-shadow:0 1px 3px #000}
+#btnSettings{position:absolute;left:12px;top:50%;transform:translateY(-50%);z-index:30;width:50px;height:50px;border-radius:16px;background:var(--panel);border:1px solid var(--line);color:var(--ink);display:flex;align-items:center;justify-content:center}
+#btnSettings svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+#btnSettings:focus-visible,.btn:focus-visible,.sw:focus-visible{outline:2px solid var(--sa);outline-offset:2px}
+
+/* voice meter on the right */
+#meter{position:absolute;right:14px;top:50%;transform:translateY(-50%);width:26px;z-index:14;display:block}
+#meter[hidden]{display:none}
+#meter .track{position:absolute;inset:0;border-radius:13px;background:var(--well);border:1px solid var(--line)}
+#meter .dz{position:absolute;left:3px;right:3px;background:rgba(245,233,214,.12);border-radius:4px}
+#meter .mid{position:absolute;left:6px;right:6px;height:2px;background:rgba(245,233,214,.5)}
+#meter .dot{position:absolute;left:4px;width:18px;height:18px;border-radius:50%;margin-top:-9px;background:var(--mute)}
+#meter .dot.up{background:var(--sa)}
+#meter .dot.dn{background:var(--to)}
+#meter .dot.hold{background:var(--ink)}
+#meter .dot.idle{opacity:.4}
+
+/* messy hands wash card, on the left side */
+#wash{position:absolute;left:14px;bottom:calc(190px + env(safe-area-inset-bottom));width:min(250px,62vw);z-index:25;display:none;background:var(--panel);border:1px solid var(--to);border-radius:16px;padding:14px}
+#wash.on{display:block}
+#wash .k{font:700 11px var(--mono);letter-spacing:1px;color:var(--to);text-transform:uppercase}
+#wash p{margin:6px 0 10px;font-size:15px}
+#wash .bar{height:8px;background:var(--well);border-radius:8px;overflow:hidden}
+#wash .bar i{display:block;height:100%;width:0;background:var(--to)}
+#washSec{font:600 12px var(--mono);color:var(--mute);margin-top:6px;display:block}
+
+#flash{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);z-index:15;font:700 64px var(--serif);opacity:0;transition:opacity .2s;pointer-events:none}
+#flash.on{opacity:1}
+#micHint{position:absolute;left:50%;top:62%;transform:translateX(-50%);z-index:22;max-width:86vw;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px;text-align:center;font-size:15px}
+#micHint[hidden]{display:none}
+#micHint button{margin-top:8px;padding:10px 16px;border:0;border-radius:12px;background:var(--sa);color:#2a1a0c;font-weight:700}
+#none{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:21;width:min(320px,86vw);background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;text-align:center}
+#none[hidden]{display:none}
+#none p{margin:0 0 12px}
+
+/* ---------- popups ---------- */
+.wrap{position:fixed;inset:0;z-index:40;display:none;align-items:flex-end;justify-content:center;background:rgba(18,12,8,.72)}
+.wrap.on{display:flex}
+.wrap.center{align-items:center;padding:16px}
+.sheet{width:100%;max-width:480px;max-height:92vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+.wrap.center .sheet{border-radius:22px}
+.head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+h2{font:700 24px var(--serif);margin:0}
+.kick{font:700 11.5px var(--mono);letter-spacing:1.4px;text-transform:uppercase;color:var(--sa)}
+.x{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:20px;line-height:1}
+.mute{color:var(--mute);font-size:14px}
+.opt{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}
+.opt .t{flex:1;min-width:0}
+.opt b{display:block;font-size:16px}
+.opt small{display:block;color:var(--mute);font-size:13.5px;line-height:1.35;margin-top:2px}
+.opt .need{color:var(--sa);font-weight:600}
+.sw{appearance:none;-webkit-appearance:none;position:relative;flex:none;width:52px;height:30px;margin:0;border-radius:999px;background:#5a4636;cursor:pointer;transition:background .2s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:var(--ink);transition:transform .2s}
+.sw:checked{background:var(--sa)}
+.sw:checked::after{transform:translateX(22px)}
+.hint{font-size:13.5px;color:var(--mute);margin:12px 0 0}
+.sec-title{font:700 12px var(--mono);letter-spacing:1px;text-transform:uppercase;color:var(--mute);margin:20px 0 8px}
+textarea{width:100%;min-height:124px;background:var(--well);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:12px;font:13px/1.4 var(--mono);resize:vertical}
+textarea:focus{outline:none;border-color:var(--sa)}
+.btn{width:100%;margin-top:10px;padding:14px;border:0;border-radius:14px;background:var(--sa);color:#2a1a0c;font-weight:700;font-size:16px}
+.btn.alt{background:var(--panel2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.btn:disabled{opacity:.5}
+.msg{min-height:22px;margin:8px 0 0;font-size:14px}
+.bad{color:#ff9f86;font-weight:600}.ok{color:var(--sage);font-weight:600}
+.steps{display:flex;gap:6px;margin:10px 0 14px}
+.steps i{flex:1;height:5px;border-radius:3px;background:var(--well)}
+.steps i.on{background:var(--sa)}
+.cbar{height:10px;background:var(--well);border-radius:8px;overflow:hidden;margin-top:12px}
+.cbar i{display:block;height:100%;width:0;background:var(--sa)}
+.clvl{height:6px;background:var(--well);border-radius:6px;overflow:hidden;margin-top:8px}
+.clvl i{display:block;height:100%;width:0;background:var(--sage)}
+</style>
+</head>
+<body>
+
+<!-- FEED -->
+<div id="feed">
+  <div id="fscroll" class="swipe"></div>
+
+  <button id="btnSettings" aria-label="Settings" title="Settings">
+    <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+  </button>
+
+  <header id="top">
+    <div class="brand"><div class="logo" id="logo"></div><div class="wm">H's <span>Reel</span> App</div></div>
+    <div id="chips"></div>
+    <div id="read" hidden></div>
+  </header>
+
+  <div id="meter" aria-hidden="true"></div>
+  <div id="flash"></div>
+
+  <div id="micHint" hidden>
+    <div>Voice scrolling needs the microphone.</div>
+    <button id="btnMic">Turn on microphone</button>
+  </div>
+
+  <div id="none" hidden>
+    <p><b>Scrolling is off.</b></p>
+    <p class="mute">Turn on at least one way to scroll in Settings.</p>
+    <button class="btn" id="btnNoneSettings">Open settings</button>
+  </div>
+
+  <div id="wash" role="status" aria-live="polite">
+    <div class="k">Messy hands</div>
+    <p>Wash or clean your hands. You can scroll again when the timer ends.</p>
+    <div class="bar"><i id="washBar"></i></div>
+    <span id="washSec">8.0 s</span>
+  </div>
+</div>
+
+<!-- SETTINGS POPUP -->
+<div class="wrap" id="settings" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+  <div class="sheet">
+    <div class="head">
+      <div><div class="kick">Settings</div><h2 id="setTitle">Ways to scroll</h2></div>
+      <button class="x" id="btnClose" aria-label="Close settings">×</button>
+    </div>
+    <p class="hint" style="margin-top:6px">Turn on any combination. Each one works on its own, and they can all be on at the same time.</p>
+
+    <div class="opt">
+      <div class="t"><b>Finger swipe</b><small>Swipe up or down with a clean finger, like any reel app.</small></div>
+      <input class="sw" type="checkbox" id="swFinger" aria-label="Finger swipe">
+    </div>
+    <div class="opt">
+      <div class="t"><b>Messy hands</b><small>Swipe with messy hands. After each swipe, a box asks you to wash for 8 seconds.</small></div>
+      <input class="sw" type="checkbox" id="swMessy" aria-label="Messy hands">
+    </div>
+    <div class="opt">
+      <div class="t"><b>Step hum</b><small>A short hum moves one reel. Higher goes up, lower goes down.</small><small class="need" id="needStep"></small></div>
+      <input class="sw" type="checkbox" id="swStep" aria-label="Step hum">
+    </div>
+    <div class="opt">
+      <div class="t"><b>Proportional hum</b><small>Hold a hum. Higher or lower sets the direction, and the further from your normal note, the faster it moves.</small><small class="need" id="needProp"></small></div>
+      <input class="sw" type="checkbox" id="swProp" aria-label="Proportional hum">
+    </div>
+    <p class="hint" id="comboHint">When step and proportional hum are both on, a short hum steps and a longer hold moves continuously.</p>
+    <button class="btn alt" id="btnRecal" hidden>Redo voice setup</button>
+
+    <div class="sec-title">Your reels</div>
+    <p class="mute" style="margin:0 0 8px">Paste YouTube Shorts links, one per line. Sports, cooking and nature all work. The feed plays them in order and repeats the list.</p>
+    <textarea id="ytIn" spellcheck="false" placeholder="https://www.youtube.com/shorts/xxxxxxxxxxx"></textarea>
+    <button class="btn" id="btnYtSave">Save reels</button>
+    <button class="btn alt" id="btnYtDefault">Use the starter reels</button>
+    <div class="msg" id="ytMsg"></div>
+  </div>
+</div>
+
+<!-- VOICE SETUP -->
+<div class="wrap center" id="cal" role="dialog" aria-modal="true" aria-labelledby="calTitle">
+  <div class="sheet">
+    <div class="kick">Voice setup</div>
+    <h2 id="calTitle">Stay quiet</h2>
+    <div class="steps" id="calSteps"><i></i><i></i><i></i><i></i></div>
+    <p id="calText" class="mute" style="margin:0"></p>
+    <div class="cbar"><i id="calBar"></i></div>
+    <div class="clvl"><i id="calLvl"></i></div>
+    <p class="mute" style="font-size:12.5px;margin:4px 0 0">The green bar shows how loud the microphone hears you.</p>
+    <div class="msg" id="calMsg"></div>
+    <button class="btn" id="calGo">Start</button>
+    <button class="btn alt" id="calCancel">Cancel</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================= logo ================= */
+const LOGO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="2" y="2" width="60" height="60" rx="18" fill="#d4553a"/><rect x="8" y="8" width="48" height="48" rx="13" fill="#241912"/><path d="M23 21 L44 32 L23 43 Z" fill="#e9a53b"/><path d="M48 24 q4 8 0 16 M53 20 q6 12 0 24" stroke="#f5e9d6" stroke-width="2.6" fill="none" stroke-linecap="round"/></svg>';
+document.getElementById("logo").innerHTML = LOGO;
+(function () {
+  const fav = document.createElement("link"); fav.rel = "icon"; fav.href = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(LOGO);
+  document.head.appendChild(fav);
+})();
+
+/* ================= config and storage ================= */
+const $ = id => document.getElementById(id);
+const now = () => performance.now();
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const median = a => { if (!a.length) return NaN; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+const CFG = {
+  items: 200, vmin: 0.25, vmax: 4, expo: 1.5, snapRate: 10, step: 1,
+  onsetAlone: 70, onsetCombo: 600, stepMaxCombo: 600, stepMaxAlone: 2500,
+  gapMs: 130, minHumMs: 80, quietAfterTouchMs: 600, washMs: 8000
+};
+const DEFAULT_YT = ["zPxQjuFoUBc", "NcySMwJ3w2Y", "WenahXu2Z-4", "JZTVokYeEVc"];
+const FEAT_KEYS = ["finger", "messy", "step", "prop"];
+const NAMES = { finger: "Finger swipe", messy: "Messy hands", step: "Step hum", prop: "Proportional hum" };
+const prefs = Object.assign({ finger: true, messy: false, step: false, prop: false }, LS.get("hreel_feat", {}));
+const voiceOn = () => prefs.step || prefs.prop;
+const savePrefs = () => LS.set("hreel_feat", prefs);
+let cal = LS.get("hreel_cal", null);            // { thr, f0, loSt, hiSt, dz }
+function parseYT(text) {
+  const out = [], seen = new Set();
+  for (const tok of String(text).split(/[\s,]+/)) {
+    if (!tok) continue;
+    const m = tok.match(/(?:[?&]v=|shorts\/|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/) || tok.match(/^([A-Za-z0-9_-]{11})$/);
+    if (m && !seen.has(m[1])) { seen.add(m[1]); out.push(m[1]); }
+  }
+  return out;
+}
+let ytList = (() => {
+  const s = LS.get("hreel_yt", null);
+  return Array.isArray(s) && s.length ? s.filter(id => /^[A-Za-z0-9_-]{11}$/.test(id)) : DEFAULT_YT.slice();
+})();
+
+/* ================= audio and pitch (voice) ================= */
+const audio = { ctx: null, an: null, buf: null, ready: false, rms: 0, hz: -1, voiced: false, st: NaN, raw: [], voicedSince: 0, lastVoiced: 0 };
+async function startMic() {
+  if (audio.ready) { if (audio.ctx.state !== "running") await audio.ctx.resume(); return; }
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  await audio.ctx.resume();
+  const src = audio.ctx.createMediaStreamSource(stream);
+  const hp = audio.ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 60;
+  audio.an = audio.ctx.createAnalyser(); audio.an.fftSize = 2048;
+  src.connect(hp); hp.connect(audio.an);
+  audio.buf = new Float32Array(audio.an.fftSize);
+  audio.ready = true;
+}
+// YIN pitch estimator (de Cheveigné & Kawahara 2002). Returns Hz, or -1 when there is no clear pitch.
+function yin(buf, sr) {
+  const W = 1024, minT = Math.floor(sr / 600), maxT = Math.min(Math.floor(sr / 70), buf.length - W - 1);
+  const c = new Float32Array(maxT + 2);
+  let run = 0; c[0] = 1;
+  for (let t = 1; t <= maxT; t++) {
+    let s = 0;
+    for (let i = 0; i < W; i++) { const x = buf[i] - buf[i + t]; s += x * x; }
+    run += s; c[t] = run ? s * t / run : 1;
+  }
+  c[maxT + 1] = c[maxT];
+  for (let t = minT; t <= maxT; t++) {
+    if (c[t] < 0.15) {
+      while (t + 1 <= maxT && c[t + 1] < c[t]) t++;
+      const a = c[t - 1], b = c[t], g = c[t + 1], den = a + g - 2 * b;
+      const sh = den ? clamp((a - g) / (2 * den), -1, 1) : 0;
+      return sr / (t + sh);
+    }
+  }
+  return -1;
+}
+let lastRead = -1;
+function readAudio(t) {
+  if (!audio.ready || t === lastRead) return; lastRead = t;
+  audio.an.getFloatTimeDomainData(audio.buf);
+  let s = 0; for (let i = 0; i < audio.buf.length; i++) s += audio.buf[i] * audio.buf[i];
+  audio.rms = Math.sqrt(s / audio.buf.length);
+  const thr = cal && cal.thr ? cal.thr : 0.01;
+  audio.hz = audio.rms > thr ? yin(audio.buf, audio.ctx.sampleRate) : -1;
+  const v = audio.hz > 0;
+  if (v && cal && cal.f0) {
+    const raw = 12 * Math.log2(audio.hz / cal.f0);
+    if (!(audio.raw.length >= 3 && Math.abs(raw - median(audio.raw)) > 7)) { // ignore octave jumps
+      audio.raw.push(raw); if (audio.raw.length > 5) audio.raw.shift();
+      const m = median(audio.raw);
+      audio.st = isNaN(audio.st) ? m : audio.st + (m - audio.st) * 0.55;
+    }
+  }
+  const was = audio.voiced;
+  if (v) { if (!was) audio.voicedSince = t; audio.lastVoiced = t; }
+  else if (t - audio.lastVoiced > 60) { audio.raw = []; audio.st = NaN; }
+  audio.voiced = v || (was && t - audio.lastVoiced <= 60);
+}
+
+/* ================= voice setup (calibration) ================= */
+const CAL = [
+  { key: "noise", title: "Stay quiet", text: "We measure the background noise first. Don't make a sound for 2 seconds.", ms: 2000 },
+  { key: "normal", title: "Hum your normal note", text: "Hum a relaxed, comfortable note, like \"mmm\". Keep it steady for 3 seconds.", ms: 3000 },
+  { key: "low", title: "Hum a LOW note", text: "Hum a note clearly lower than your normal one, but still comfortable.", ms: 3000 },
+  { key: "high", title: "Hum a HIGH note", text: "Hum a note clearly higher than your normal one, but still comfortable.", ms: 3000 }
+];
+let calIdx = 0, calTmp = {}, calOK = null, calCancel = null, calBusy = false;
+function renderCal() {
+  const s = CAL[calIdx];
+  $("calSteps").querySelectorAll("i").forEach((e, i) => e.classList.toggle("on", i <= calIdx));
+  $("calTitle").textContent = s.title; $("calText").textContent = s.text;
+  $("calBar").style.width = "0"; $("calLvl").style.width = "0";
+  $("calMsg").textContent = ""; $("calGo").disabled = false; $("calGo").textContent = "Start";
+}
+function openCal(onOK, onCancel) {
+  calIdx = 0; calTmp = {}; calOK = onOK; calCancel = onCancel; calBusy = false;
+  renderCal(); $("cal").classList.add("on");
+}
+function closeCal() { $("cal").classList.remove("on"); }
+function calFail(msg) {
+  $("calMsg").innerHTML = '<span class="bad">' + msg + "</span>";
+  $("calGo").disabled = false; $("calGo").textContent = "Try again"; calBusy = false;
+}
+$("calGo").onclick = async () => {
+  if (calBusy) return; calBusy = true;
+  try { await startMic(); }
+  catch (e) { calBusy = false; $("calMsg").innerHTML = '<span class="bad">Microphone blocked. Allow microphone access for this page, then try again.</span>'; return; }
+  const s = CAL[calIdx];
+  $("calGo").disabled = true; $("calGo").textContent = "Listening...";
+  const prev = cal, samples = [], t0 = now();
+  cal = s.key === "noise" ? null : Object.assign({ loSt: -6, hiSt: 6, dz: 1.5 }, prev || {}, { thr: calTmp.thr, f0: calTmp.f0 || 150 });
+  await new Promise(res => {
+    (function tick() {
+      const t = now(); readAudio(t);
+      if (s.key === "noise") samples.push(audio.rms); else if (audio.hz > 0) samples.push(audio.hz);
+      $("calBar").style.width = clamp((t - t0) / s.ms * 100, 0, 100) + "%";
+      $("calLvl").style.width = clamp(audio.rms * 600, 0, 100) + "%";
+      if (t - t0 < s.ms) requestAnimationFrame(tick); else res();
+    })();
+  });
+  cal = prev;
+  if (s.key === "noise") {
+    const sorted = [...samples].sort((a, b) => a - b), p90 = sorted[Math.floor(sorted.length * 0.9)] || 0;
+    calTmp.thr = Math.max(0.006, p90 * 3);
+  } else {
+    if (samples.length < 20) return calFail("I could not hear a steady hum. Try again a bit louder and closer.");
+    const trimmed = [...samples].sort((a, b) => a - b).slice(Math.floor(samples.length * 0.2), Math.ceil(samples.length * 0.8));
+    const hz = median(trimmed);
+    if (s.key === "normal") calTmp.f0 = hz;
+    else {
+      const st = 12 * Math.log2(hz / calTmp.f0);
+      if (s.key === "low" && st > -2) return calFail("That was too close to your normal note. Go a little lower.");
+      if (s.key === "high" && st < 2) return calFail("That was too close to your normal note. Go a little higher.");
+      calTmp[s.key === "low" ? "loSt" : "hiSt"] = st;
+    }
+  }
+  calBusy = false;
+  calIdx++;
+  if (calIdx < CAL.length) { renderCal(); $("calMsg").innerHTML = '<span class="ok">Got it.</span>'; return; }
+  calTmp.dz = clamp(0.35 * Math.min(calTmp.hiSt, -calTmp.loSt), 1, 2.5);
+  cal = calTmp; LS.set("hreel_cal", cal); audio.st = NaN; audio.raw = [];
+  closeCal();
+  const ok = calOK; calOK = null; calCancel = null;
+  if (ok) ok();
+};
+$("calCancel").onclick = () => {
+  closeCal(); calBusy = false;
+  const c = calCancel; calOK = null; calCancel = null;
+  if (c) c();
+  commitPrefs();
+};
+
+/* ================= feed ================= */
+const sc = $("fscroll");
+const H = () => sc.clientHeight || 1;
+const maxScroll = () => Math.max(0, sc.scrollHeight - sc.clientHeight);
+const curItem = () => clamp(Math.round(sc.scrollTop / H()) + 1, 1, CFG.items);
+let lastSet = 0, lastChange = -1e9, lastVoiceT = -1e9, baseItem = 1;
+let pos = 0, aim = 0, vel = 0, lastT = 0;
+let touching = false, lastTouchEnd = -1e9;
+
+function ytSrc(id) {
+  return "https://www.youtube.com/embed/" + id + "?enablejsapi=1&playsinline=1&mute=1&controls=0&loop=1&playlist=" + id +
+    "&rel=0&modestbranding=1&iv_load_policy=3&origin=" + encodeURIComponent(location.origin);
+}
+function ytSend(f, obj) { try { f.contentWindow.postMessage(JSON.stringify(obj), "*"); } catch (e) {} }
+function ytCmd(f, func) { ytSend(f, { event: "command", func, args: "" }); }
+let io = null, loadIO = null;
+function buildFeed() {
+  const keep = curItem();
+  sc.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  for (let i = 1; i <= CFG.items; i++) {
+    const id = ytList[(i - 1) % ytList.length];
+    const d = document.createElement("div");
+    d.className = "clip"; d.dataset.yt = id; d.dataset.i = i;
+    d.innerHTML =
+      '<div class="yt"><img class="poster" alt="" loading="lazy" src="https://i.ytimg.com/vi/' + id + '/hqdefault.jpg">' +
+      '<iframe title="Reel ' + i + '" allow="autoplay; encrypted-media"></iframe></div>' +
+      '<div class="shade"></div>' +
+      '<a class="ext" href="https://www.youtube.com/shorts/' + id + '" target="_blank" rel="noopener" aria-label="Open this reel on YouTube">' +
+      '<svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M10 6H5v13h13v-5"/></svg></a>' +
+      '<div class="cap"><span class="tag">Reel ' + i + '</span><p>Muted. Move with the ways you turned on in Settings.</p></div>';
+    frag.appendChild(d);
+  }
+  sc.appendChild(frag);
+  observeClips();
+  setPos((keep - 1) * H());
+  baseItem = keep;
+}
+function observeClips() {
+  if (io) io.disconnect(); if (loadIO) loadIO.disconnect();
+  // play only the reel that is mostly on screen
+  io = new IntersectionObserver(entries => {
+    for (const e of entries) {
+      const c = e.target, f = c.querySelector("iframe"), vis = e.intersectionRatio > 0.55;
+      if (f && f.getAttribute("src")) ytCmd(f, vis ? "playVideo" : "pauseVideo");
+    }
+  }, { root: sc, threshold: [0, 0.55, 1] });
+  // load only nearby reels, so the feed stays light
+  loadIO = new IntersectionObserver(entries => {
+    for (const e of entries) {
+      const c = e.target, f = c.querySelector("iframe");
+      if (!f) continue;
+      if (e.isIntersecting) { if (!f.getAttribute("src")) f.src = ytSrc(c.dataset.yt); }
+      else if (f.getAttribute("src")) { f.removeAttribute("src"); c.querySelector(".yt").classList.remove("ready"); }
+    }
+  }, { root: sc, rootMargin: "120% 0px" });
+  sc.querySelectorAll(".clip").forEach(c => { io.observe(c); loadIO.observe(c); });
+}
+sc.addEventListener("load", e => {
+  const f = e.target;
+  if (!(f instanceof HTMLIFrameElement)) return;
+  const c = f.closest(".clip"); if (!c || !f.getAttribute("src")) return;
+  c.querySelector(".yt").classList.add("ready");
+  ytSend(f, { event: "listening" });
+  setTimeout(() => { ytSend(f, { event: "command", func: "mute", args: "" }); }, 400);
+}, true);
+
+sc.addEventListener("touchstart", () => { touching = true; }, { passive: true });
+const touchDone = () => { if (touching) { touching = false; lastTouchEnd = now(); } };
+sc.addEventListener("touchend", touchDone, { passive: true });
+sc.addEventListener("touchcancel", touchDone, { passive: true });
+sc.addEventListener("wheel", () => { lastTouchEnd = now(); }, { passive: true });
+
+function setPos(p) { pos = clamp(p, 0, maxScroll()); sc.scrollTop = pos; lastSet = sc.scrollTop; }
+function applyTouchClass() {
+  const ok = (prefs.finger || prefs.messy) && !wash.on;
+  sc.className = ok ? "swipe" : "lock";
+}
+
+/* ================= messy hands wash card ================= */
+const wash = { on: false, t0: 0, raf: 0 };
+function startWash() {
+  wash.on = true; wash.t0 = now();
+  $("wash").classList.add("on");
+  applyTouchClass();
+  cancelAnimationFrame(wash.raf);
+  (function tick() {
+    const left = CFG.washMs - (now() - wash.t0), f = clamp((now() - wash.t0) / CFG.washMs, 0, 1);
+    $("washBar").style.width = (f * 100) + "%";
+    $("washSec").textContent = Math.max(0, left / 1000).toFixed(1) + " s";
+    if (f < 1) wash.raf = requestAnimationFrame(tick); else endWash();
+  })();
+}
+function endWash() {
+  wash.on = false; cancelAnimationFrame(wash.raf);
+  $("wash").classList.remove("on");
+  applyTouchClass();
+}
+
+/* ================= hum control ================= */
+const ev = { active: false, start: 0, sts: [] };
+let engaged = false;
+let flashT = 0;
+function flash(glyph, color) {
+  const f = $("flash"); f.textContent = glyph; f.style.color = color; f.classList.add("on");
+  clearTimeout(flashT); flashT = setTimeout(() => f.classList.remove("on"), 300);
+}
+function stepHum(sts) {
+  const m = median(sts.slice(Math.floor(sts.length * 0.3)));
+  if (isNaN(m) || !cal) return;
+  const h = H(), max = maxScroll();
+  const base = Math.round(aim / h) * h;
+  if (m > cal.dz) { aim = clamp(base - CFG.step * h, 0, max); flash("▲", "var(--sa)"); }
+  else if (m < -cal.dz) { aim = clamp(base + CFG.step * h, 0, max); flash("▼", "var(--to)"); }
+  else return;
+  lastVoiceT = now(); // a voice move, so it never starts the wash card
+}
+function voiceStep(t, dt, h) {
+  const heard = audio.voiced && !isNaN(audio.st);
+  if (heard) {
+    if (!ev.active) { ev.active = true; ev.start = audio.voicedSince; ev.sts = []; }
+    ev.sts.push(audio.st);
+  } else if (ev.active && t - audio.lastVoiced > CFG.gapMs) {
+    ev.active = false;
+    const dur = audio.lastVoiced - ev.start;
+    // short hums step. With proportional hum on, a hum must stay under 600 ms to count as a step.
+    const stepMax = prefs.prop ? CFG.stepMaxCombo : CFG.stepMaxAlone;
+    if (prefs.step && dur >= CFG.minHumMs && dur <= stepMax) stepHum(ev.sts);
+    engaged = false;
+  }
+  // held hums move continuously (after the onset time)
+  const onset = prefs.step ? CFG.onsetCombo : CFG.onsetAlone;
+  let vt = 0;
+  if (prefs.prop && heard && t - ev.start >= onset) {
+    const st = audio.st, gate = engaged ? cal.dz * 0.6 : cal.dz; // hysteresis
+    if (st > gate) { const u = clamp((st - cal.dz) / Math.max(0.5, cal.hiSt - cal.dz), 0, 1); vt = -(CFG.vmin + (CFG.vmax - CFG.vmin) * Math.pow(u, CFG.expo)) * h; }
+    else if (st < -gate) { const u = clamp((-st - cal.dz) / Math.max(0.5, -cal.loSt - cal.dz), 0, 1); vt = (CFG.vmin + (CFG.vmax - CFG.vmin) * Math.pow(u, CFG.expo)) * h; }
+  }
+  engaged = vt !== 0;
+  if (vt !== 0) vel += (vt - vel) * Math.min(1, dt * 8);
+  else { vel += (0 - vel) * Math.min(1, dt * 16); if (Math.abs(vel) < h * 0.5) vel = 0; }
+}
+
+/* ================= meter and readout ================= */
+function buildMeter() {
+  $("meter").innerHTML = '<div class="track"></div><div class="dz"></div><div class="mid"></div><div class="dot"></div>';
+}
+function sizeMeter() { $("meter").style.height = Math.min(240, window.innerHeight * 0.34) + "px"; }
+function drawMeter() {
+  const host = $("meter"); if (!cal || host.hidden) return;
+  const h = host.clientHeight; if (!h) return;
+  const range = Math.max(cal.hiSt, -cal.loSt) * 1.15;
+  const y = st => clamp(h / 2 - (st / range) * (h / 2), 9, h - 9);
+  const dz = host.querySelector(".dz"), mid = host.querySelector(".mid"), dot = host.querySelector(".dot");
+  dz.style.top = y(cal.dz) + "px"; dz.style.height = (y(-cal.dz) - y(cal.dz)) + "px";
+  mid.style.top = (h / 2 - 1) + "px";
+  if (audio.voiced && !isNaN(audio.st)) {
+    dot.style.top = y(audio.st) + "px";
+    dot.className = "dot " + (audio.st > cal.dz ? "up" : audio.st < -cal.dz ? "dn" : "hold");
+  } else { dot.style.top = (h / 2) + "px"; dot.className = "dot idle"; }
+}
+let lastReadout = 0;
+function drawReadout(t) {
+  if (t - lastReadout < 100) return; lastReadout = t;
+  const r = $("read");
+  if (!voiceOn() || !cal) { r.hidden = true; return; }
+  r.hidden = false;
+  const hz = audio.hz > 0 ? audio.hz.toFixed(0) + " Hz" : "--";
+  const st = audio.voiced && !isNaN(audio.st) ? (audio.st >= 0 ? "+" : "") + audio.st.toFixed(1) + " st" : "--";
+  r.textContent = "PITCH " + hz + "   OFFSET " + st;
+}
+
+/* ================= main loop ================= */
+const modalOpen = () => $("settings").classList.contains("on") || $("cal").classList.contains("on");
+function frame(t) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, Math.max(0, (t - lastT) / 1000)); lastT = t;
+  const h = H(), max = maxScroll();
+  const cur = sc.scrollTop;
+  if (Math.abs(cur - lastSet) > 0.5) { lastChange = t; lastSet = cur; } // the finger moved the feed
+  const native = t - lastChange < 150;
+  const quietAfterTouch = t - lastTouchEnd > CFG.quietAfterTouchMs;
+
+  if (touching || wash.on || native || !quietAfterTouch || modalOpen()) {
+    // finger, wash box or a popup has control: voice is paused
+    pos = aim = cur; vel = 0; ev.active = false; engaged = false;
+  } else {
+    if (voiceOn() && cal && audio.ready) { readAudio(t); voiceStep(t, dt, h); }
+    if (vel !== 0) { pos = clamp(pos + vel * dt, 0, max); aim = pos; lastVoiceT = t; }
+    else {
+      if (Math.abs(aim - pos) < 0.5) aim = clamp(Math.round(pos / h) * h, 0, max); // settle on the nearest reel
+      pos += (aim - pos) * Math.min(1, dt * CFG.snapRate);
+    }
+    setPos(pos);
+    // a finger swipe that has settled on a new reel starts the wash card
+    const item = clamp(Math.round(pos / h) + 1, 1, CFG.items);
+    const settled = vel === 0 && Math.abs(aim - pos) < 0.5 && Math.abs(pos - (item - 1) * h) < 2;
+    if (settled && item !== baseItem) {
+      const fromFinger = lastChange > lastVoiceT;
+      baseItem = item;
+      if (fromFinger && prefs.messy) startWash();
+    }
+  }
+  if (voiceOn() && cal) drawMeter();
+  drawReadout(t);
+}
+
+/* ================= settings ================= */
+function updateChips() {
+  const on = FEAT_KEYS.filter(k => prefs[k]);
+  $("chips").innerHTML = on.length ? on.map(k => '<span class="chip">' + NAMES[k] + "</span>").join("") : '<span class="chip off">Scrolling is off</span>';
+}
+function updateExtras() {
+  const hasVoice = voiceOn() && !!cal;
+  $("meter").hidden = !hasVoice;
+  if (hasVoice) sizeMeter();
+  $("none").hidden = !!(prefs.finger || prefs.messy || prefs.step || prefs.prop);
+  $("micHint").hidden = !(voiceOn() && cal && !audio.ready);
+  $("btnRecal").hidden = !cal;
+  $("comboHint").style.display = prefs.step && prefs.prop ? "block" : "none";
+}
+function commitPrefs() {
+  savePrefs(); applyTouchClass(); updateChips(); updateExtras();
+}
+function bindSwitch(id, key) {
+  const el = $(id);
+  el.checked = !!prefs[key];
+  el.addEventListener("change", async () => {
+    if (!el.checked) { prefs[key] = false; commitPrefs(); return; }
+    if (key === "step" || key === "prop") {
+      try { await startMic(); }
+      catch (e) { el.checked = false; $("ytMsg").innerHTML = '<span class="bad">Microphone blocked. Allow microphone access for this page, then try again.</span>'; return; }
+      if (!cal) {
+        // no voice setup yet: start it, and only turn the switch on when setup succeeds
+        el.checked = false;
+        openCal(() => { prefs[key] = true; el.checked = true; commitPrefs(); },
+                () => { el.checked = false; });
+        return;
+      }
+    }
+    prefs[key] = true; commitPrefs();
+  });
+}
+function openSettings() { $("settings").classList.add("on"); $("swFinger").focus({ preventScroll: true }); }
+function closeSettings() { $("settings").classList.remove("on"); }
+$("btnSettings").onclick = openSettings;
+$("btnNoneSettings").onclick = openSettings;
+$("btnClose").onclick = closeSettings;
+$("settings").addEventListener("click", e => { if (e.target === $("settings")) closeSettings(); });
+$("btnRecal").onclick = () => openCal(() => { commitPrefs(); }, () => {});
+$("ytIn").value = ytList.map(id => "https://www.youtube.com/shorts/" + id).join("\n");
+function saveReels(list) {
+  ytList = list; LS.set("hreel_yt", list);
+  buildFeed();
+}
+$("btnYtSave").onclick = () => {
+  const list = parseYT($("ytIn").value);
+  if (!list.length) { $("ytMsg").innerHTML = '<span class="bad">No valid links found. Paste links like https://www.youtube.com/shorts/xxxxxxxxxxx</span>'; return; }
+  saveReels(list);
+  $("ytMsg").innerHTML = '<span class="ok">Saved ' + list.length + " reels. The feed repeats them in order.</span>";
+};
+$("btnYtDefault").onclick = () => {
+  saveReels(DEFAULT_YT.slice());
+  $("ytIn").value = DEFAULT_YT.map(id => "https://www.youtube.com/shorts/" + id).join("\n");
+  $("ytMsg").innerHTML = '<span class="ok">Starter reels restored.</span>';
+};
+$("btnMic").onclick = async () => {
+  try { await startMic(); updateExtras(); }
+  catch (e) { $("micHint").querySelector("div").innerHTML = '<span class="bad">Microphone blocked. Allow it in your browser settings.</span>'; }
+};
+
+bindSwitch("swFinger", "finger");
+bindSwitch("swMessy", "messy");
+bindSwitch("swStep", "step");
+bindSwitch("swProp", "prop");
+$("needStep").textContent = cal ? "" : "Needs a quick voice setup";
+$("needProp").textContent = cal ? "" : "Needs a quick voice setup";
+buildMeter();
+buildFeed();
+commitPrefs();
+window.addEventListener("resize", () => { const it = curItem(); sizeMeter(); setPos((it - 1) * H()); });
+requestAnimationFrame(t => { lastT = t; requestAnimationFrame(frame); });
+</script>
+</body>
+</html>
